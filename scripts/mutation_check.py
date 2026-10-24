@@ -3,14 +3,14 @@
 Each *mutant* monkeypatches one plausible bug into the SQL backend, the SQLite runtime, the
 reference evaluator or the simplifier. For every mutant the random part of the two differential
 properties (SQLite result == evaluator verdict for the whole rule *and for every subtree*, and
-unsimplified == simplified tree; no hand-written examples) is run with a fixed seed; the
-mutant is *killed* if any of them fails.
+unsimplified == simplified tree; no hand-written examples) is run under several fixed seeds;
+a run *kills* the mutant if any property fails, and the table reports kills per seed.
 
 Mutants in the front end (parser, modifiers) are deliberately absent: both sides of the
 differential test consume the same AST, so such bugs are invisible to it by construction.
 They are covered by the unit and golden tests instead.
 
-Usage: uv run python scripts/mutation_check.py [--examples N] [--whole-rule-only]
+Usage: uv run python scripts/mutation_check.py [--examples N] [--seeds K] [--whole-rule-only]
 """
 
 from __future__ import annotations
@@ -25,6 +25,7 @@ from pathlib import Path
 from typing import Any
 
 from hypothesis import HealthCheck, Phase, given, settings
+from hypothesis import seed as hypothesis_seed
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
@@ -202,12 +203,12 @@ def _loose_num_scalar_matches(matcher: Any, value: Any) -> bool:
     return _real_scalar_matches(matcher, value)
 
 
-def property_holds(examples: int, subtrees: bool = True) -> tuple[bool, str]:
-    failure: list[str] = []
+def property_holds(examples: int, seed: int, subtrees: bool = True) -> bool:
+    """Run the differential properties with a fixed Hypothesis seed; True if they all hold."""
 
+    @hypothesis_seed(seed)
     @settings(
         max_examples=examples,
-        derandomize=True,
         database=None,
         deadline=None,
         phases=[Phase.generate],
@@ -230,14 +231,15 @@ def property_holds(examples: int, subtrees: bool = True) -> tuple[bool, str]:
 
     try:
         prop()
-    except Exception as exc:
-        failure.append(type(exc).__name__)
-    return (not failure, failure[0] if failure else "")
+    except Exception:
+        return False
+    return True
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="seeded-bug kill rate of the differential test")
-    parser.add_argument("--examples", type=int, default=300)
+    parser.add_argument("--examples", type=int, default=300, help="examples per run")
+    parser.add_argument("--seeds", type=int, default=5, help="independent seeds per mutant")
     parser.add_argument(
         "--whole-rule-only",
         action="store_true",
@@ -245,24 +247,24 @@ def main() -> None:
     )
     args = parser.parse_args()
     subtrees = not args.whole_rule_only
+    seeds = range(args.seeds)
     # compile_rule imported simplify by name; patch through the compiler module too.
     import sigmaforge.compiler as compiler_module  # noqa: PLC0415
 
-    ok, _ = property_holds(args.examples, subtrees)
-    if not ok:
+    if not all(property_holds(args.examples, s, subtrees) for s in seeds):
         sys.exit("baseline (no mutant) fails the property - fix that first")
     mode = "whole rule only" if args.whole_rule_only else "whole rule + every subtree"
-    print(f"{args.examples} examples per mutant, fixed seed, {mode}\n")
-    print("| mutant | killed | seeded bug |\n|---|---|---|")
-    killed = 0
+    print(f"{args.examples} examples x seeds 0..{args.seeds - 1} per mutant, {mode}\n")
+    print("| mutant | killed in seeds | seeded bug |\n|---|---|---|")
+    always = 0
     start = time.perf_counter()
     for mutant in MUTANTS:
         with mutant.patch(), _also_patch_compiler(mutant, compiler_module):
-            holds, _ = property_holds(args.examples, subtrees)
-        killed += not holds
-        print(f"| {mutant.name} | {'yes' if not holds else 'NO'} | {mutant.description} |")
+            kills = sum(not property_holds(args.examples, s, subtrees) for s in seeds)
+        always += kills == args.seeds
+        print(f"| {mutant.name} | {kills}/{args.seeds} | {mutant.description} |")
     elapsed = time.perf_counter() - start
-    print(f"\nkilled {killed}/{len(MUTANTS)} mutants in {elapsed:.1f}s")
+    print(f"\n{always}/{len(MUTANTS)} mutants killed under every seed ({elapsed:.1f}s)")
 
 
 def _also_patch_compiler(

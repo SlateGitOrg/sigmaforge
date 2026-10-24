@@ -63,6 +63,16 @@ EXAMPLES: list[tuple[dict[str, Any], list[dict[str, Any]]]] = [
         },
         [{"EventID": "4688", "Port": 6}, {"EventID": 4688, "Port": "6"}, {"EventID": "04688"}],
     ),
+    (  # regex flags, cased matching and CIDR address families
+        {
+            "title": "flags case family",
+            "detection": {
+                "sel1": {"User|re|i": "^a", "Image|cased": "Ab", "DestinationIp|cidr": "::/0"},
+                "condition": "1 of them",
+            },
+        },
+        [{"User": "A"}, {"Image": "ab"}, {"DestinationIp": "10.0.0.1"}, {"DestinationIp": "::1"}],
+    ),
 ]
 
 
@@ -71,6 +81,7 @@ EXAMPLES: list[tuple[dict[str, Any], list[dict[str, Any]]]] = [
 @example(EXAMPLES[1])
 @example(EXAMPLES[2])
 @example(EXAMPLES[3])
+@example(EXAMPLES[4])
 def test_sql_backend_agrees_with_evaluator(
     case: tuple[dict[str, Any], list[dict[str, Any]]],
 ) -> None:
@@ -81,6 +92,11 @@ def test_sql_backend_agrees_with_evaluator(
 
 
 @given(rule_and_events())
+@example(EXAMPLES[0])
+@example(EXAMPLES[1])
+@example(EXAMPLES[2])
+@example(EXAMPLES[3])
+@example(EXAMPLES[4])
 def test_every_subtree_agrees(case: tuple[dict[str, Any], list[dict[str, Any]]]) -> None:
     """Stronger than whole-rule agreement: no node of the tree may disagree on any event."""
     doc, evs = case

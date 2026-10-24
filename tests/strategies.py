@@ -31,6 +31,8 @@ ALPHABET = "abAB01-/_%\\'\"*?[]. éÉKk"
 IDENTIFIERS = ["sel1", "sel2", "filter_a", "_helper"]
 
 texts = st.text(alphabet=ALPHABET, max_size=6)
+# Case-sensitivity bugs only show on values with ASCII letters, so cased items always have one.
+lettered = st.builds(lambda pre, ch, post: pre + ch + post, texts, st.sampled_from("abAB"), texts)
 ints = st.integers(min_value=-5, max_value=70000)
 ips = st.sampled_from(
     ["10.1.2.3", "10.255.0.1", "192.168.1.7", "192.168.2.7", "8.8.8.8", "::1", "2001:db8::5"]
@@ -44,9 +46,22 @@ NETWORK_LIST = [
     "8.8.8.8/32",
 ]
 networks = st.sampled_from(NETWORK_LIST)
-regexes = st.sampled_from(
-    ["^a", "b$", "a.b", "[0-9]+", "(?:ab|cd)", "\\\\", "A", "^$", "é", "x*y?", "^[a-z]+$", "%_"]
-)
+# Each pool regex comes with strings that sit on its edges (case, anchors, newlines).
+REGEX_SAMPLES: dict[str, list[str]] = {
+    "^a": ["a", "A", "ba", "a\nb", "b\na"],
+    "b$": ["b", "B", "bc", "ab\n"],
+    "a.b": ["axb", "AXB", "a\nb", "ab"],
+    "[0-9]+": ["1", "x", "a1"],
+    "(?:ab|cd)": ["ab", "AB", "Cd", "ac"],
+    "\\\\": ["\\", "/"],
+    "A": ["A", "a"],
+    "^$": ["", "\n", "a"],
+    "\u00e9": ["\u00e9", "\u00c9"],
+    "x*y?": ["", "Y"],
+    "^[a-z]+$": ["abc", "ABC", "ab\n", "a\nb"],
+    "%_": ["%_", "%x", "%_".upper()],
+}
+regexes = st.sampled_from(list(REGEX_SAMPLES))
 
 # Hand-picked values that tend to sit on semantic edges (case, newlines, metacharacters).
 EDGE_VALUES = [
@@ -99,6 +114,8 @@ def _near_miss(draw: st.DrawFn, seed: Any) -> Any:
     """A value derived from a rule value: exact, wildcard-filled, re-cased, mutated or padded."""
     if isinstance(seed, int):
         return draw(st.sampled_from([seed, str(seed), seed + 1, f"0{seed}", "text"]))
+    if seed in REGEX_SAMPLES:
+        return draw(st.sampled_from(REGEX_SAMPLES[seed]))
     if "/" in seed and seed in NETWORK_LIST:
         net = ipaddress.ip_network(seed)
         other = "::1" if net.version == 4 else "10.0.0.1"
@@ -186,13 +203,14 @@ def detection_item(draw: st.DrawFn) -> tuple[str, Any]:
         case "contains_all":
             return f"{field}|contains|all", draw(many)
         case "cased":
-            return f"{field}|cased", draw(texts)
+            return f"{field}|cased", draw(lettered)
         case "contains_cased":
-            return f"{field}|contains|cased", draw(many)
+            return f"{field}|contains|cased", draw(st.lists(lettered, min_size=1, max_size=3))
         case "re":
             return f"{field}|re", draw(regexes)
         case "re_i":
-            return f"{field}|re|i", draw(regexes)
+            flag = draw(st.sampled_from(["i", "m", "s", "i|m"]))
+            return f"{field}|re|{flag}", draw(regexes)
         case "cidr":
             return f"{field}|cidr", draw(st.one_of(networks, st.lists(networks, min_size=1)))
         case "cmp":
