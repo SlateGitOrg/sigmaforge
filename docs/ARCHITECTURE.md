@@ -143,16 +143,36 @@ first-seen order.
   is NULL or false; NULL OR x is NULL or x), so only negation needs care: `NOT NULL` is NULL,
   but Sigma wants true. Every `Not` is emitted as `NOT coalesce(<expr>, 0)`; the inner
   expression is again "NULL means false", so the property composes through nesting.
+* **Loading events** (`sqlite_runtime.load_events`). One untyped column per flattened field;
+  each cell holds what `evaluator.lookup` resolves for that column, so a literal `"a.b"` key
+  beats a nested `a -> b`, as in the evaluator. SQLite identifiers are case-insensitive (ASCII)
+  while event fields are not, so `Image` and `image` (from events, or a rule field passed as an
+  extra column) cannot coexist; `load_events` raises `EventDataError` rather than letting one
+  spelling silently stand in for the other, and `sigmaforge sql-run` reports it (exit 2 for the
+  events themselves, a per-rule failure for a rule field).
 
 ### Splunk SPL
 
 Output is `<search terms> [| where <eval expression>]`. Top-level conjuncts are rendered as
 search terms when possible; a conjunct containing a regex, a `?` wildcard or a literal `*` is
-rendered in the eval dialect instead (`match(field, "(?i)^...$")`, `cidrmatch`, `isnull`) and
+rendered in the eval dialect instead (`match(field, "(?is)^...\z")`, `cidrmatch`, `isnull`) and
 moved behind `| where`. Moving only whole conjuncts keeps the Boolean structure exact. Because
 SPL search gives `OR` higher precedence than `AND`, the renderer parenthesises every AND inside
 an OR. Negation is `NOT field=value`, which (unlike `field!=value`) also matches events that
 lack the field.
+
+* **Wildcards across newlines.** Sigma `*`/`?` match any character, newlines included (the
+  evaluator compiles them with `DOTALL`; SQLite `LIKE` agrees). PCRE's `.` does not match a
+  newline and its `$` also matches before a trailing newline, so the eval-dialect regex is
+  `(?s)` / `(?is)` + `^...\z` (`backends.base.full_match_regex`, shared with KQL).
+* **NULL-safe negation in the eval dialect.** `match()`, `cidrmatch()`, `==` and comparisons on
+  a missing field are NULL, `NOT NULL` is NULL and `where` keeps only TRUE, so a bare
+  `NOT (match(F, ...))` would drop events lacking `F`. The renderer pushes `NOT` down to the
+  leaves (De Morgan) and guards each negated field leaf with Splunk's idiom
+  `(isnull(F) OR NOT match(F, ...))`; `isnull`/`isnotnull` and `_raw` need no guard. Above the
+  leaves the expression is then negation-free, so a leftover NULL can only mean FALSE where
+  Sigma says FALSE. `tests/test_splunk_eval.py` checks this with a three-valued interpreter of
+  the emitted text against the evaluator on generated rules (Splunk itself is not run).
 
 ### Elastic EQL
 
@@ -177,8 +197,8 @@ full match of the translation equals Python's search of the original. O(n) in pa
 
 `Table\n| where ...` with the table from the `sentinel-windows` pipeline; no table means a
 compile failure. String shapes map to `=~ contains startswith endswith` (and `_cs` / `==`);
-other patterns become `matches regex "(?i)^...$"`. Sigma regexes are checked with
-`check_re2` (no look-around, back-references, atomic groups, possessive quantifiers). CIDR uses
+other patterns become `matches regex "(?is)^...\z"` (`(?s)` so wildcards cross newlines).
+Sigma regexes are checked with `check_re2` (no look-around, back-references, atomic groups, possessive quantifiers). CIDR uses
 `ipv4_is_in_range` / `ipv6_is_in_range`. `null` / `exists` use `isempty` / `isnotempty`.
 
 ## Reference evaluator and differential testing
