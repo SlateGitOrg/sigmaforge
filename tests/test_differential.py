@@ -10,16 +10,21 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from hypothesis import example, given
+import pytest
+from hypothesis import example, given, settings
+from hypothesis import strategies as st
 
 from sigmaforge.ast import Node, fields
 from sigmaforge.backends.sqlite import SQLiteBackend
 from sigmaforge.compiler import compile_rule
+from sigmaforge.errors import UnsupportedFeatureError
 from sigmaforge.evaluator import Evaluator, evaluate
 from sigmaforge.rule import load_rule, rule_from_dict
 from sigmaforge.sqlite_runtime import connect, load_events, run_query
 from tests.helpers import load_jsonl, subtree_disagreements
-from tests.strategies import FIELDS, rule_and_events
+from tests.strategies import FIELDS, events_for, rule_and_events
+
+ROOT_DIR = Path(__file__).resolve().parent.parent
 
 
 def sql_matches(node_rule: Any, evs: list[dict[str, Any]]) -> list[int]:
@@ -104,3 +109,25 @@ def test_demo_rules_agree_on_fixture_events(root: Path) -> None:
         conn = connect()
         load_events(conn, evs, extra_columns=fields(compiled.node))
         assert run_query(conn, query) == Evaluator(compiled.node).filter(evs), path.name
+
+
+SIGMAHQ_RULES = sorted((ROOT_DIR / "third_party" / "sigmahq" / "rules").rglob("*.yml"))
+
+
+@pytest.mark.parametrize("path", SIGMAHQ_RULES, ids=[p.stem[:60] for p in SIGMAHQ_RULES])
+@settings(max_examples=15)
+@given(data=st.data())
+def test_sigmahq_rules_differential(path: Path, data: st.DataObject) -> None:
+    """Real rules: each pinned SigmaHQ rule against events derived from its own values."""
+    rule = load_rule(path)
+    compiled = compile_rule(rule)
+    columns = fields(compiled.node) or ["message"]
+    evs = data.draw(events_for({"detection": rule.detection}, columns))
+    try:
+        query = SQLiteBackend(keyword_columns=columns).convert(compiled).text
+    except UnsupportedFeatureError:
+        pytest.skip("rule not expressible in SQL")
+    conn = connect()
+    load_events(conn, evs, extra_columns=columns)
+    assert run_query(conn, query) == Evaluator(compiled.node).filter(evs)
+    assert subtree_disagreements(compiled.node, evs, columns) == []

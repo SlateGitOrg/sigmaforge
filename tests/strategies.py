@@ -124,13 +124,15 @@ def _near_miss(draw: st.DrawFn, seed: Any) -> Any:
     return filled
 
 
-def events_for(doc: dict[str, Any]) -> st.SearchStrategy[list[dict[str, Any]]]:
+def events_for(
+    doc: dict[str, Any], fields: list[str] | None = None
+) -> st.SearchStrategy[list[dict[str, Any]]]:
     """Events whose values are mostly derived from the rule's own values for the same field."""
     pairs = _mined_pairs(doc["detection"])
     keyword_seeds = [v for f, v in pairs if f is None]
     required: dict[str, st.SearchStrategy[Any]] = {}
     optional: dict[str, st.SearchStrategy[Any]] = {}
-    for name in FIELDS:
+    for name in fields or FIELDS:
         seeds = [v for f, v in pairs if f == name] + keyword_seeds
         if seeds:
             derived = st.sampled_from(seeds).flatmap(_near_miss)
