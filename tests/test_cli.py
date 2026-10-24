@@ -121,6 +121,7 @@ def test_ast_and_pipelines(capsys: pytest.CaptureFixture[str]) -> None:
         (["compile", "-t", "kql", "missing-dir"], "no such file"),
         (["compile", "-t", "kql", "-p", "nosuch", str(RULES)], "unknown pipeline"),
         (["eval", str(RULES / "proc_base64_whoami.yml"), "missing.jsonl"], "cannot read events"),
+        (["report", "-o", "no/such/dir/r.md", str(RULES)], "cannot write"),
     ],
 )
 def test_usage_errors(argv: list[str], message: str, capsys: pytest.CaptureFixture[str]) -> None:

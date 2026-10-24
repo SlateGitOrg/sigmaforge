@@ -77,7 +77,10 @@ def _read_events(path: Path) -> list[dict[str, Any]]:
 def _open_output(path: str | None) -> TextIO:
     if path is None or path == "-":
         return sys.stdout
-    return Path(path).open("w", encoding="utf-8")
+    try:
+        return Path(path).open("w", encoding="utf-8")
+    except OSError as exc:
+        raise UsageError(f"cannot write {path}: {exc.strerror}") from exc
 
 
 # ----------------------------------------------------------------------------- commands
