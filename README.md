@@ -97,7 +97,7 @@ print(get_backend("kql").convert(compiled).text)
 ## Demo
 
 `make demo` runs offline against the bundled example rules and synthetic events. Excerpt from a
-real run (full output in the build report):
+real run (the `// title` comment lines are trimmed; run `make demo` for the full output):
 
 ```text
 == 3. the same rule for all four backends
