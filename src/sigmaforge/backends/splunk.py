@@ -123,14 +123,17 @@ class SplunkBackend(Backend):
     def finalize(self, compiled: CompiledRule) -> str:
         node = compiled.node
         conjuncts = node.children if isinstance(node, And) else (node,)
-        search: list[str] = []
+        searchable: list[Node] = []
         deferred: list[Node] = []
         for conjunct in conjuncts:
             try:
-                search.append(self.render(conjunct, PREC_AND))
+                self.render(conjunct)
+                searchable.append(conjunct)
             except NotSearchableError:
                 deferred.append(conjunct)
         prefix = compiled.state.get("splunk_prefix")
+        alone = len(searchable) == 1 and not prefix
+        search = [self.render(c, 0 if alone else PREC_AND) for c in searchable]
         terms = ([prefix] if prefix else []) + search
         text = " AND ".join(terms) if terms else "*"
         if deferred:
@@ -150,6 +153,8 @@ class SplunkBackend(Backend):
         f = self.field_ref(field)
         match matcher:
             case StrMatch(pattern, cased):
+                if pattern.shape()[0] is Shape.ANYTHING:
+                    return f"{f}=*"
                 value = self.search_value(pattern)
                 return f"{f}=CASE({value})" if cased else f"{f}={value}"
             case RegexMatch():

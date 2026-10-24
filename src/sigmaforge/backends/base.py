@@ -16,10 +16,9 @@ from typing import Any, ClassVar
 
 from sigmaforge.ast import (
     And,
-    Const,
     FieldMatch,
-    KeywordMatcher,
     KeywordMatch,
+    KeywordMatcher,
     Matcher,
     Node,
     Not,
@@ -167,7 +166,12 @@ class Backend(TextRenderer):
 
     def convert(self, compiled: CompiledRule) -> Query:
         """Render a compiled rule; raises :class:`UnsupportedFeatureError` when it cannot."""
-        text = self.finalize(compiled)
+        try:
+            text = self.finalize(compiled)
+        except UnsupportedFeatureError as exc:
+            if exc.backend is not None:
+                raise
+            raise UnsupportedFeatureError(exc.feature, exc.message, backend=self.name) from exc
         return Query(
             backend=self.name,
             text=text,

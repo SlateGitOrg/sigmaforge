@@ -55,7 +55,9 @@ def kql_string(text: str) -> str:
 
 class KqlBackend(Backend):
     name = "kql"
-    description = "Microsoft KQL (Sentinel / Defender XDR), tables via the sentinel-windows pipeline"
+    description = (
+        "Microsoft KQL (Sentinel / Defender XDR), tables via the sentinel-windows pipeline"
+    )
     default_pipelines = ("sentinel-windows",)
 
     @staticmethod
