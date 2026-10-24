@@ -49,6 +49,8 @@ ignore = [
 "tests/**" = ["PLC0415", "S101", "S608", "RUF001", "RUF003"]
 # Building SQL text is the job of these modules; identifiers and literals are quoted by
 # quote_ident/quote_str and the runtime only interpolates its own table/column names.
+# A property-test harness: assertions are its whole point.
+"scripts/mutation_check.py" = ["S101"]
 "src/sigmaforge/backends/sqlite.py" = ["S608"]
 "src/sigmaforge/sqlite_runtime.py" = ["S608"]
 
