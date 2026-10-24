@@ -68,6 +68,9 @@ class TextRenderer(ABC):
     backend_name: ClassVar[str] = "?"
     and_token: ClassVar[str] = "and"
     or_token: ClassVar[str] = "or"
+    # Splunk search gives OR *higher* precedence than AND; such dialects set this so an AND
+    # nested in an OR is always parenthesised.
+    paren_and_in_or: ClassVar[bool] = False
 
     # ------------------------------------------------------------------ hooks
     @abstractmethod
@@ -107,7 +110,7 @@ class TextRenderer(ABC):
             prec = PREC_OR if len(parts) > 1 else PREC_ATOM
         elif isinstance(node, And):
             text = f" {self.and_token} ".join(self.render(c, PREC_AND) for c in node.children)
-            prec = PREC_AND
+            prec = PREC_OR - 1 if self.paren_and_in_or and parent_prec == PREC_OR else PREC_AND
         elif isinstance(node, Not):
             text = self.render_not(node.child)
             prec = PREC_NOT
