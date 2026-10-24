@@ -23,7 +23,9 @@ does this rule become on target X, and if it cannot become one, exactly why not?
 * People evaluating Sigma tooling who want to see where each query language *cannot* express
   a rule (keyword search in EQL/KQL, look-around regexes in RE2, word boundaries in Lucene...).
 * Anyone interested in how to test a compiler whose targets you cannot run locally: the SQL
-  backend is executed, the other three are pinned by golden files and construct-level tests.
+  backend is executed, the other three are pinned by golden files and construct-level tests,
+  and the Splunk `| where` dialect is also checked by a three-valued (NULL-aware) interpreter
+  of its output.
 
 ## What it supports
 
@@ -70,7 +72,7 @@ Requires Python 3.12 and [uv](https://docs.astral.sh/uv/).
 
 ```console
 $ git clone <this repo> && cd sigmaforge
-$ make check                          # format, lint, mypy --strict, 654 tests, coverage gate
+$ make check                          # format, lint, mypy --strict, 684 tests, coverage gate
 $ uv run sigmaforge compile -t kql examples/rules/
 $ uv run sigmaforge compile -t splunk -f json -o out.json examples/rules/
 $ uv run sigmaforge report third_party/sigmahq/rules -o report.md
@@ -203,8 +205,8 @@ share the tree - and are covered by unit and golden tests instead.
 
 ### Coverage — `make check`
 
-`uv run --frozen pytest --cov` reports **98.06%** branch coverage of `src/sigmaforge`
-(gate: 90%, `fail_under` in `pyproject.toml`), 654 tests.
+`uv run --frozen pytest --cov` reports **98.09%** branch coverage of `src/sigmaforge`
+(gate: 90%, `fail_under` in `pyproject.toml`), 684 tests.
 
 ### Throughput — `make bench`
 
