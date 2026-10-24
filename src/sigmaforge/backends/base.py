@@ -37,6 +37,17 @@ PREC_NOT = 3
 PREC_ATOM = 4
 
 
+def full_match_regex(pattern: SigmaString, cased: bool) -> str:
+    r"""A PCRE/RE2 regex that matches a whole value exactly when Sigma's wildcard does.
+
+    ``(?s)`` lets ``*``/``?`` (rendered ``.*``/``.``) cross newlines, as they do in Sigma, the
+    evaluator and SQLite ``LIKE``; ``\z`` anchors at the very end, because PCRE's ``$`` also
+    matches before a trailing newline. ``^`` is the start of the subject in both engines
+    without the ``m`` flag.
+    """
+    return ("(?s)" if cased else "(?is)") + "^" + pattern.to_regex() + r"\z"
+
+
 @dataclass(frozen=True)
 class Query:
     """One compiled query plus provenance."""

@@ -10,7 +10,8 @@ per logsource); a rule whose logsource maps to no table is rejected rather than 
 
 String leaves map to KQL's native operators (``=~``, ``contains``, ``startswith``, ``endswith``
 and their ``_cs``/``==`` case-sensitive twins); any other wildcard layout becomes an anchored
-``matches regex``. Sigma regexes run on RE2, so look-around, back-references, atomic groups and
+``matches regex`` (see :func:`~sigmaforge.backends.base.full_match_regex`: ``(?s)`` so wildcards
+cross newlines). Sigma regexes run on RE2, so look-around, back-references, atomic groups and
 possessive quantifiers are rejected by :func:`sigmaforge.regexdialect.check_re2`.
 
 KQL string columns have no null: a missing string is ``""``. ``null``/``exists`` therefore use
@@ -33,7 +34,7 @@ from sigmaforge.ast import (
     RegexMatch,
     StrMatch,
 )
-from sigmaforge.backends.base import Backend
+from sigmaforge.backends.base import Backend, full_match_regex
 from sigmaforge.compiler import CompiledRule
 from sigmaforge.regexdialect import check_re2
 from sigmaforge.sigmastr import Shape
@@ -92,8 +93,7 @@ class KqlBackend(Backend):
                 if shape in OPERATORS:
                     op = OPERATORS[shape][1 if cased else 0]
                     return f"{f} {op} {kql_string(text)}"
-                regex = ("" if cased else "(?i)") + "^" + pattern.to_regex() + "$"
-                return f"{f} matches regex {kql_string(regex)}"
+                return f"{f} matches regex {kql_string(full_match_regex(pattern, cased))}"
             case RegexMatch(pattern, flags):
                 check_re2(pattern)
                 prefix = f"(?{''.join(sorted(flags))})" if flags else ""

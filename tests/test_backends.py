@@ -159,9 +159,9 @@ def test_splunk_search_terms(node: Node, query: str) -> None:
     ("node", "query"),
     [
         (f("A", RegexMatch("a\\d", frozenset({"i"}))), '* | where match(A, "(?i)a\\\\d")'),
-        (f("A", s("a?b")), '* | where match(A, "(?i)^a.b$")'),
-        (f("A", StrMatch(SigmaString.literal("5*3"))), '* | where match(A, "(?i)^5\\\\*3$")'),
-        (f("a.b", s("x?", cased=True)), "* | where match('a.b', \"^x.$\")"),
+        (f("A", s("a?b")), '* | where match(A, "(?is)^a.b\\\\z")'),
+        (f("A", StrMatch(SigmaString.literal("5*3"))), '* | where match(A, "(?is)^5\\\\*3\\\\z")'),
+        (f("a.b", s("x?", cased=True)), "* | where match('a.b', \"(?s)^x.\\\\z\")"),
         (
             And((f("A", NumMatch(1)), f("B", RegexMatch("z")))),
             'A=1 | where match(B, "z")',
@@ -172,7 +172,7 @@ def test_splunk_search_terms(node: Node, query: str) -> None:
         ),
         (
             And((Or((f("A", s("x")), f("B", RegexMatch("z")))), f("C", NumMatch(1)))),
-            'C=1 | where match(A, "(?i)^x$") OR match(B, "z")',
+            'C=1 | where match(A, "(?is)^x\\\\z") OR match(B, "z")',
         ),
         (
             And((Not(f("A", RegexMatch("z"))), f("C", NumMatch(1)))),
@@ -204,11 +204,11 @@ def test_splunk_search_terms(node: Node, query: str) -> None:
                     ),
                 )
             ),
-            '* | where match(R, "r") AND (match(A, "(?i)^a.$") OR cidrmatch("::1/128", B) '
+            '* | where match(R, "r") AND (match(A, "(?is)^a.\\\\z") OR cidrmatch("::1/128", B) '
             "OR isnull(C) OR D==1 OR E<2 OR isnull(F) OR isnotnull(G))",
         ),
         (KeywordMatch(RegexMatch("ev+il")), '* | where match(_raw, "ev+il")'),
-        (KeywordMatch(s("*e?il*")), '* | where match(_raw, "(?i)^.*e.il.*$")'),
+        (KeywordMatch(s("*e?il*")), '* | where match(_raw, "(?is)^.*e.il.*\\\\z")'),
     ],
 )
 def test_splunk_where_clause(node: Node, query: str) -> None:
@@ -277,8 +277,8 @@ def test_eql_category_and_keywords() -> None:
         (f("A", s("x*")), 'A startswith "x"'),
         (f("A", s("*x")), 'A endswith "x"'),
         (f("A", s("*x", cased=True)), 'A endswith_cs "x"'),
-        (f("A", s("a*b")), 'A matches regex "(?i)^a.*b$"'),
-        (f("A", s("a?b", cased=True)), 'A matches regex "^a.b$"'),
+        (f("A", s("a*b")), 'A matches regex "(?is)^a.*b\\\\z"'),
+        (f("A", s("a?b", cased=True)), 'A matches regex "(?s)^a.b\\\\z"'),
         (f("A", s("*")), "isnotempty(A)"),
         (f("A", s('C:\\"x"')), 'A =~ "C:\\\\\\"x\\""'),
         (f("process.name", s("x")), "['process.name'] =~ \"x\""),

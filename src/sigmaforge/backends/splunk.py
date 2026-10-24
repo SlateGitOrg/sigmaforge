@@ -10,7 +10,9 @@ the ``where`` clause as a whole, which keeps the boolean structure exact.
 
 SPL search gives ``OR`` higher precedence than ``AND``, so every AND nested in an OR is
 parenthesised. Negation uses ``NOT field=value`` (which also matches events lacking the field,
-as Sigma requires), never ``field!=value``.
+as Sigma requires), never ``field!=value``. Wildcard leaves in the eval dialect use ``(?s)`` and
+``\\z`` so ``*``/``?`` cross newlines and nothing matches before a trailing newline (see
+:func:`~sigmaforge.backends.base.full_match_regex`).
 """
 
 from __future__ import annotations
@@ -30,7 +32,13 @@ from sigmaforge.ast import (
     RegexMatch,
     StrMatch,
 )
-from sigmaforge.backends.base import PREC_AND, PREC_NOT, Backend, TextRenderer
+from sigmaforge.backends.base import (
+    PREC_AND,
+    PREC_NOT,
+    Backend,
+    TextRenderer,
+    full_match_regex,
+)
 from sigmaforge.compiler import CompiledRule
 from sigmaforge.sigmastr import Shape, SigmaString, Wildcard
 
@@ -48,10 +56,6 @@ def spl_string(text: str) -> str:
 
 def _flagged(pattern: str, flags: frozenset[str]) -> str:
     return f"(?{''.join(sorted(flags))}){pattern}" if flags else pattern
-
-
-def wildcard_regex(pattern: SigmaString, cased: bool) -> str:
-    return ("" if cased else "(?i)") + "^" + pattern.to_regex() + "$"
 
 
 class SplunkEvalRenderer(TextRenderer):
@@ -77,7 +81,7 @@ class SplunkEvalRenderer(TextRenderer):
             case StrMatch(pattern, cased):
                 if pattern.shape()[0] is Shape.ANYTHING:
                     return f"isnotnull({f})"
-                return f"match({f}, {spl_string(wildcard_regex(pattern, cased))})"
+                return f"match({f}, {spl_string(full_match_regex(pattern, cased))})"
             case RegexMatch(pattern, flags):
                 return f"match({f}, {spl_string(_flagged(pattern, flags))})"
             case CidrMatch(network):
@@ -93,7 +97,7 @@ class SplunkEvalRenderer(TextRenderer):
 
     def keyword_match(self, matcher: KeywordMatcher) -> str:
         if isinstance(matcher, StrMatch):
-            return f"match(_raw, {spl_string(wildcard_regex(matcher.pattern, matcher.cased))})"
+            return f"match(_raw, {spl_string(full_match_regex(matcher.pattern, matcher.cased))})"
         return f"match(_raw, {spl_string(_flagged(matcher.pattern, matcher.flags))})"
 
 
