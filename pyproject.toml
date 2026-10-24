@@ -1,0 +1,72 @@
+[project]
+name = "sigmaforge"
+version = "0.1.0"
+description = "A Sigma detection-rule compiler: YAML -> AST -> Splunk SPL, Elastic EQL, Microsoft KQL and SQLite SQL, with a reference evaluator and differential tests."
+readme = "README.md"
+license = "MIT"
+authors = [{ name = "archit2501" }]
+requires-python = ">=3.12"
+dependencies = ["pyyaml>=6.0.2,<7"]
+classifiers = [
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Security",
+    "Typing :: Typed",
+]
+
+[project.scripts]
+sigmaforge = "sigmaforge.cli:main"
+
+[build-system]
+requires = ["uv_build>=0.11.28,<0.12.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "hypothesis==6.170.9",
+    "mypy==2.4.0",
+    "pytest==9.1.1",
+    "pytest-cov==7.1.0",
+    "ruff==0.17.2",
+    "types-pyyaml==6.0.12.20260906",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+src = ["src", "tests", "scripts"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "SIM", "C4", "RUF", "PL", "N", "PTH", "RET", "TID"]
+ignore = [
+    "PLR0911", # many-return dispatch functions are clearer than nested ifs here
+    "PLR0912",
+    "PLR2004", # magic values are fine in tests and parsers
+    "PLR0913",
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["PLC0415", "S101"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+files = ["src", "tests", "scripts"]
+warn_unreachable = true
+
+[[tool.mypy.overrides]]
+module = ["hypothesis.*"]
+follow_imports = "normal"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q --strict-markers"
+
+[tool.coverage.run]
+source = ["sigmaforge"]
+branch = true
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = true
+fail_under = 85
+exclude_lines = ["pragma: no cover", "if TYPE_CHECKING:", "raise NotImplementedError"]
