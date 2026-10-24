@@ -113,7 +113,9 @@ def cmd_compile(args: argparse.Namespace) -> int:
 
 
 def cmd_report(args: argparse.Namespace) -> int:
-    targets = list(BACKENDS) if "all" in args.target else [resolve_backend_name(t) for t in args.target]
+    targets = (
+        list(BACKENDS) if "all" in args.target else [resolve_backend_name(t) for t in args.target]
+    )
     pipelines = {b: _pipelines_for(b, args) for b in targets}
     options = {b: _backend_options(b, args) for b in targets}
     report = build_report([Path(p) for p in args.rules], targets, pipelines, options)
@@ -135,7 +137,9 @@ def cmd_report(args: argparse.Namespace) -> int:
 
 
 def cmd_eval(args: argparse.Namespace) -> int:
-    compiled = compile_rule(load_rule(Path(args.rule)), [load_pipeline(p) for p in args.pipeline or []])
+    compiled = compile_rule(
+        load_rule(Path(args.rule)), [load_pipeline(p) for p in args.pipeline or []]
+    )
     events = _read_events(Path(args.events))
     hits = Evaluator(compiled.node).filter(events)
     for index in hits:
@@ -150,7 +154,9 @@ def cmd_sql_run(args: argparse.Namespace) -> int:
     failures = 0
     for file in iter_rule_files(Path(p) for p in args.rules):
         try:
-            compiled = compile_rule(load_rule(file), [load_pipeline(p) for p in args.pipeline or []])
+            compiled = compile_rule(
+                load_rule(file), [load_pipeline(p) for p in args.pipeline or []]
+            )
             keyword_columns = sorted({k for e in events for k in e})
             query = get_backend("sql", keyword_columns=keyword_columns).convert(compiled)
         except SigmaForgeError as exc:

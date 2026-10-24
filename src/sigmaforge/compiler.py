@@ -123,11 +123,17 @@ def resolve_condition(expr: CondExpr, identifiers: Mapping[str, Node], text: str
             return Not(resolve_condition(child, identifiers, text))
         case CondAnd(left, right):
             return And(
-                (resolve_condition(left, identifiers, text), resolve_condition(right, identifiers, text))
+                (
+                    resolve_condition(left, identifiers, text),
+                    resolve_condition(right, identifiers, text),
+                )
             )
         case CondOr(left, right):
             return Or(
-                (resolve_condition(left, identifiers, text), resolve_condition(right, identifiers, text))
+                (
+                    resolve_condition(left, identifiers, text),
+                    resolve_condition(right, identifiers, text),
+                )
             )
 
 

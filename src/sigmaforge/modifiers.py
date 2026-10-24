@@ -58,7 +58,7 @@ KNOWN = (
 
 # Characters ``windash`` substitutes for a leading '-' or '/': hyphen, slash, en dash, em dash,
 # horizontal bar (the set used by SigmaHQ's specification).
-WINDASH_CHARS = ("-", "/", "–", "—", "―")
+WINDASH_CHARS = ("-", "/", "\u2013", "\u2014", "\u2015")
 WINDASH_RE = re.compile(r"\B[-/]\b")
 MAX_WINDASH_VARIANTS = 625  # 5 ** 4; more dashes than that is almost certainly a mistake
 

@@ -65,7 +65,7 @@ SigmaYAMLLoader.add_constructor(yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG, 
 def load_yaml_documents(text: str, source: str = "<string>") -> list[Any]:
     """Parse every YAML document in ``text`` with the Sigma loader."""
     try:
-        return list(yaml.load_all(text, Loader=SigmaYAMLLoader))  # noqa: S506 - SafeLoader subclass
+        return list(yaml.load_all(text, Loader=SigmaYAMLLoader))
     except yaml.YAMLError as exc:
         raise SigmaRuleError(f"YAML syntax error: {exc}", location=source) from exc
 

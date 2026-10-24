@@ -36,16 +36,21 @@ target-version = "py312"
 src = ["src", "tests", "scripts"]
 
 [tool.ruff.lint]
-select = ["E", "F", "W", "I", "B", "UP", "SIM", "C4", "RUF", "PL", "N", "PTH", "RET", "TID"]
+select = ["E", "F", "W", "I", "B", "UP", "SIM", "C4", "RUF", "PL", "N", "PTH", "RET", "TID", "S"]
 ignore = [
     "PLR0911", # many-return dispatch functions are clearer than nested ifs here
     "PLR0912",
     "PLR2004", # magic values are fine in tests and parsers
     "PLR0913",
+    "S105",    # flags `and_token = "AND"` style class attributes as passwords
 ]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/**" = ["PLC0415", "S101"]
+"tests/**" = ["PLC0415", "S101", "S608", "RUF001", "RUF003"]
+# Building SQL text is the job of these modules; identifiers and literals are quoted by
+# quote_ident/quote_str and the runtime only interpolates its own table/column names.
+"src/sigmaforge/backends/sqlite.py" = ["S608"]
+"src/sigmaforge/sqlite_runtime.py" = ["S608"]
 
 [tool.mypy]
 python_version = "3.12"

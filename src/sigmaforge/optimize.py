@@ -30,8 +30,8 @@ def simplify(node: Node) -> Node:
         neutral, absorbing = (True, False) if is_and else (False, True)
         out: list[Node] = []
         seen: set[Node] = set()
-        for child in node.children:
-            child = simplify(child)
+        for original in node.children:
+            child = simplify(original)
             same_kind = isinstance(child, And | Or) and isinstance(child, And) == is_and
             nested = child.children if isinstance(child, And | Or) and same_kind else (child,)
             for item in nested:

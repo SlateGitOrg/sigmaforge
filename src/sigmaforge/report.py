@@ -116,7 +116,12 @@ class CompileReport:
         lines = [f"# {heading}", ""]
         if preamble:
             lines += [preamble, ""]
-        lines += ["## Summary", "", "| backend | compiled | failed | success |", "|---|---|---|---|"]
+        lines += [
+            "## Summary",
+            "",
+            "| backend | compiled | failed | success |",
+            "|---|---|---|---|",
+        ]
         for b in self.backends:
             ok, total = self.counts(b)
             pct = f"{100 * ok / total:.1f}%" if total else "n/a"

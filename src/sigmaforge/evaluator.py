@@ -23,7 +23,7 @@ from __future__ import annotations
 import functools
 import ipaddress
 import re
-from collections.abc import Iterator, Mapping
+from collections.abc import Iterator, Mapping, Sequence
 from typing import Any
 
 from sigmaforge.ast import (
@@ -184,6 +184,6 @@ class Evaluator:
     def matches(self, event: Mapping[str, Any]) -> bool:
         return evaluate(self.node, event)
 
-    def filter(self, events: list[Mapping[str, Any]]) -> list[int]:
+    def filter(self, events: Sequence[Mapping[str, Any]]) -> list[int]:
         """Indices of matching events."""
         return [i for i, e in enumerate(events) if self.matches(e)]

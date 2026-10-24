@@ -45,8 +45,9 @@ QUOTAS = {
 
 
 def fetch(url: str) -> bytes:
-    request = urllib.request.Request(url, headers={"User-Agent": "sigmaforge-fetch"})
-    with urllib.request.urlopen(request, timeout=60) as response:  # noqa: S310 - fixed https URLs
+    request = urllib.request.Request(url, headers={"User-Agent": "sigmaforge-fetch"})  # noqa: S310
+    # Only the fixed https:// URLs defined above are ever opened.
+    with urllib.request.urlopen(request, timeout=60) as response:  # noqa: S310
         data: bytes = response.read()
         return data
 
@@ -80,7 +81,9 @@ def download(paths: list[str], expected: dict[str, str] | None) -> dict[str, str
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("--select", action="store_true", help="re-select paths and rewrite manifest")
+    parser.add_argument(
+        "--select", action="store_true", help="re-select paths and rewrite manifest"
+    )
     args = parser.parse_args()
     if args.select:
         paths = select()

@@ -24,7 +24,6 @@ from sigmaforge.errors import UnsupportedFeatureError
 LUCENE_RESERVED = set('"#@&<>~')
 CLASS_SHORTHANDS = {"d": "0-9", "w": "a-zA-Z0-9_", "s": " \\t\\n\\r\\f"}
 CONTROL_ESCAPES = {"t": "\t", "n": "\n", "r": "\r", "f": "\f", "v": "\v"}
-_GROUP_RE = re.compile(r"\((?:\?(?:P?<[A-Za-z_]\w*>|<=|<!|[=!:>]|[imsx]+\)|P=\w+\)))?")
 
 
 @dataclass(frozen=True, slots=True)
@@ -33,65 +32,40 @@ class RxToken:
     text: str
 
 
+_RX_TOKEN = re.compile(
+    r"""
+    (?P<escape>\\x.{2}|\\.)
+  | (?P<klass>\[\^?\]?(?:\\.|[^\]\\])*\])
+  | (?P<group>\((?:\?(?:P?<[A-Za-z_]\w*>|<=|<!|[=!:>]|[imsx]+\)|P=\w+\)))?)
+  | (?P<anchor_start>\^)
+  | (?P<anchor_end>\$)
+  | (?P<quant>[*+?]|\{\d+(?:,\d*)?\})(?P<suffix>[?+])?
+  | (?P<literal>.)
+    """,
+    re.VERBOSE | re.DOTALL,
+)
+
+
 def tokenize(pattern: str) -> Iterator[RxToken]:
-    i = 0
-    n = len(pattern)
-    while i < n:
-        ch = pattern[i]
-        if ch == "\\":
-            if i + 1 >= n:
-                raise UnsupportedFeatureError("regex syntax", f"trailing backslash in {pattern!r}")
-            if pattern[i + 1] == "x" and i + 4 <= n:
-                yield RxToken("escape", pattern[i : i + 4])
-                i += 4
-                continue
-            yield RxToken("escape", pattern[i : i + 2])
-            i += 2
-        elif ch == "[":
-            j = i + 1
-            if j < n and pattern[j] == "^":
-                j += 1
-            if j < n and pattern[j] == "]":
-                j += 1
-            while j < n and pattern[j] != "]":
-                j += 2 if pattern[j] == "\\" else 1
-            if j >= n:
-                raise UnsupportedFeatureError("regex syntax", f"unterminated class in {pattern!r}")
-            yield RxToken("class", pattern[i : j + 1])
-            i = j + 1
-        elif ch == "(":
-            m = _GROUP_RE.match(pattern, i)
-            text = m.group() if m else "("
-            if text == "(" and pattern.startswith("(?", i):
-                text = "(?"  # unknown extension group; consumers reject it
-            yield RxToken("group", text)
-            i += len(text)
-        elif ch == "^":
-            yield RxToken("anchor_start", ch)
-            i += 1
-        elif ch == "$":
-            yield RxToken("anchor_end", ch)
-            i += 1
-        elif ch in "*+?":
-            yield RxToken("quant", ch)
-            i += 1
-            if i < n and pattern[i] in "?+":
-                yield RxToken("lazy" if pattern[i] == "?" else "possessive", pattern[i])
-                i += 1
-        elif ch == "{":
-            m = re.match(r"\{\d+(?:,\d*)?\}", pattern[i:])
-            if m:
-                yield RxToken("quant", m.group())
-                i += len(m.group())
-                if i < n and pattern[i] in "?+":
-                    yield RxToken("lazy" if pattern[i] == "?" else "possessive", pattern[i])
-                    i += 1
-            else:
-                yield RxToken("literal", ch)
-                i += 1
-        else:
-            yield RxToken("literal", ch)
-            i += 1
+    pos = 0
+    while pos < len(pattern):
+        m = _RX_TOKEN.match(pattern, pos)
+        if m is None:  # pragma: no cover - the literal branch matches any character
+            raise UnsupportedFeatureError("regex syntax", f"cannot scan {pattern!r}")
+        kind, text = m.lastgroup or "literal", m.group()
+        pos = m.end()
+        if kind == "suffix":
+            quant, suffix = m.group("quant"), m.group("suffix")
+            yield RxToken("quant", quant)
+            yield RxToken("lazy" if suffix == "?" else "possessive", suffix)
+            continue
+        if kind == "literal" and text == "\\":
+            raise UnsupportedFeatureError("regex syntax", f"trailing backslash in {pattern!r}")
+        if kind == "literal" and text == "[":
+            raise UnsupportedFeatureError("regex syntax", f"unterminated class in {pattern!r}")
+        if kind == "group" and text == "(" and pattern.startswith("(?", m.start()):
+            text, pos = "(?", pos + 1  # unknown extension group; consumers reject it
+        yield RxToken("class" if kind == "klass" else kind, text)
 
 
 def check_re2(pattern: str) -> None:
@@ -209,7 +183,7 @@ def to_lucene(pattern: str, flags: frozenset[str] = frozenset()) -> tuple[str, b
             case "class":
                 out.append(_translate_class(tok.text, pattern))
             case "group":
-                if tok.text == "(" or tok.text == "(?:" or tok.text.startswith(("(?<", "(?P<")):
+                if tok.text in ("(", "(?:") or tok.text.startswith(("(?<", "(?P<")):
                     if tok.text in ("(?<=", "(?<!"):
                         raise _lucene_unsupported("look-around", pattern)
                     out.append("(")

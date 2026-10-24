@@ -151,12 +151,13 @@ class _Parser:
         if self.cur.kind is Tok.END:
             raise self.error("empty condition")
         expr = self.or_expr()
-        if self.cur.kind is Tok.PIPE:
+        tail = self.cur
+        if tail.kind is Tok.PIPE:
             raise UnsupportedFeatureError(
                 "aggregation", f"aggregation expressions ('| ...') are not supported: {self.text!r}"
             )
-        if self.cur.kind is not Tok.END:
-            raise self.error(f"unexpected {self.cur.text!r}")
+        if tail.kind is not Tok.END:
+            raise self.error(f"unexpected {tail.text!r}")
         return expr
 
     def or_expr(self) -> CondExpr:

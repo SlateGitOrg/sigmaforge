@@ -188,7 +188,8 @@ class AddCondition(Transformation):
         return cls(condition=node, source=tuple(raw.items()), **common)
 
     def apply(self, ctx: PipelineContext) -> None:
-        assert self.condition is not None
+        if self.condition is None:  # only constructible without one by direct instantiation
+            raise PipelineError("add_condition has no condition", location=self.id)
         ctx.node = And((self.condition, ctx.node))
 
 
