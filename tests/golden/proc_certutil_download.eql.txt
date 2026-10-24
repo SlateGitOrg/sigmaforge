@@ -1,0 +1,1 @@
+process where (process.executable like~ "*\\certutil.exe" or process.pe.original_file_name : "CertUtil.exe") and process.command_line like~ "*urlcache*" and process.command_line like~ "*http*"

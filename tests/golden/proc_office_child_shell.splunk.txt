@@ -1,0 +1,1 @@
+source="XmlWinEventLog:Microsoft-Windows-Sysmon/Operational" AND EventCode=1 AND (ParentImage="*\\WINWORD.EXE" OR ParentImage="*\\EXCEL.EXE") AND (Image="*\\cmd.exe" OR Image="*\\powershell.exe") AND NOT CommandLine="*ApprovedAddin*"

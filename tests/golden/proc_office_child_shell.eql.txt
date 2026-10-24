@@ -1,0 +1,1 @@
+process where (process.parent.executable like~ "*\\WINWORD.EXE" or process.parent.executable like~ "*\\EXCEL.EXE") and (process.executable like~ "*\\cmd.exe" or process.executable like~ "*\\powershell.exe") and not process.command_line like~ "*ApprovedAddin*"

@@ -1,0 +1,1 @@
+any where event.code == 4625 and winlog.event_data.LogonType >= 3 and not winlog.event_data.TargetUserName like~ "*$"

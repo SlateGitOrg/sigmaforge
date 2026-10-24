@@ -1,0 +1,2 @@
+DeviceRegistryEvents
+| where (RegistryKey contains "\\CurrentVersion\\Run\\" or RegistryKey contains "\\CurrentVersion\\RunOnce\\") and RegistryValueData endswith ".exe" and not(RegistryValueData startswith "C:\\Program Files\\" or RegistryValueData startswith "C:\\Program Files (x86)\\" or isempty(RegistryValueData))

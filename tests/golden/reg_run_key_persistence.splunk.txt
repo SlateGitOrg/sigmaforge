@@ -1,0 +1,1 @@
+source="XmlWinEventLog:Microsoft-Windows-Sysmon/Operational" AND (EventCode=12 OR EventCode=13 OR EventCode=14) AND (TargetObject="*\\CurrentVersion\\Run\\*" OR TargetObject="*\\CurrentVersion\\RunOnce\\*") AND Details="*.exe" AND NOT (Details="C:\\Program Files\\*" OR Details="C:\\Program Files (x86)\\*" OR NOT Details=*)

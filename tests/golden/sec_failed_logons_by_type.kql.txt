@@ -1,0 +1,2 @@
+SecurityEvent
+| where EventID == 4625 and LogonType >= 3 and not(TargetUserName endswith "$")

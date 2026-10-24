@@ -1,0 +1,1 @@
+SELECT * FROM "events" WHERE (sigma_cidr_match('10.0.0.0/8', "DestinationIp") OR sigma_cidr_match('192.168.0.0/16', "DestinationIp")) AND (CAST("DestinationPort" AS TEXT) = '4444' OR CAST("DestinationPort" AS TEXT) = '1337') AND "Image" REGEXP '(?i)\\(temp|appdata)\\'

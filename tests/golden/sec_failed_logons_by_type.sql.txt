@@ -1,0 +1,1 @@
+SELECT * FROM "events" WHERE CAST("EventID" AS TEXT) = '4625' AND (typeof("LogonType") IN ('integer', 'real') AND "LogonType" >= 3) AND NOT coalesce("TargetUserName" LIKE '%$' ESCAPE '\', 0)

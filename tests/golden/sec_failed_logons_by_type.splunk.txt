@@ -1,0 +1,1 @@
+source="XmlWinEventLog:Security" AND EventCode=4625 AND LogonType>=3 AND NOT TargetUserName="*$"

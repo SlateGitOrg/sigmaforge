@@ -1,0 +1,2 @@
+DeviceProcessEvents
+| where (FolderPath endswith "\\certutil.exe" or ProcessVersionInfoOriginalFileName =~ "CertUtil.exe") and ProcessCommandLine contains "urlcache" and ProcessCommandLine contains "http"

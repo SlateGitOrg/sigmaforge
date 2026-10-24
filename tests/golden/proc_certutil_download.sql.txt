@@ -1,0 +1,1 @@
+SELECT * FROM "events" WHERE ("Image" LIKE '%\\certutil.exe' ESCAPE '\' OR "OriginalFileName" LIKE 'CertUtil.exe' ESCAPE '\') AND "CommandLine" LIKE '%urlcache%' ESCAPE '\' AND "CommandLine" LIKE '%http%' ESCAPE '\'

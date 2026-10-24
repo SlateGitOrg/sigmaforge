@@ -1,0 +1,1 @@
+SELECT * FROM "events" WHERE ("TargetObject" LIKE '%\\CurrentVersion\\Run\\%' ESCAPE '\' OR "TargetObject" LIKE '%\\CurrentVersion\\RunOnce\\%' ESCAPE '\') AND "Details" LIKE '%.exe' ESCAPE '\' AND NOT coalesce("Details" LIKE 'C:\\Program Files\\%' ESCAPE '\' OR "Details" LIKE 'C:\\Program Files (x86)\\%' ESCAPE '\' OR "Details" IS NULL, 0)

@@ -1,0 +1,1 @@
+source="XmlWinEventLog:Microsoft-Windows-Sysmon/Operational" AND EventCode=3 AND (DestinationIp="10.0.0.0/8" OR DestinationIp="192.168.0.0/16") AND (DestinationPort=4444 OR DestinationPort=1337) | where match(Image, "(?i)\\\\(temp|appdata)\\\\")

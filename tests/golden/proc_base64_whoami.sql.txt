@@ -1,0 +1,1 @@
+SELECT * FROM "events" WHERE "CommandLine" LIKE '%d2hvYW1p%' ESCAPE '\' OR "CommandLine" LIKE '%dob2Fta%' ESCAPE '\' OR "CommandLine" LIKE '%3aG9hbW%' ESCAPE '\'

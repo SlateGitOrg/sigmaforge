@@ -1,0 +1,1 @@
+network where (cidrMatch(destination.ip, "10.0.0.0/8") or cidrMatch(destination.ip, "192.168.0.0/16")) and (destination.port == 4444 or destination.port == 1337) and process.executable regex~ ".*\\\\(temp|appdata)\\\\.*"

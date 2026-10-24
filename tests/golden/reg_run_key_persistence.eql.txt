@@ -1,0 +1,1 @@
+registry where (registry.path like~ "*\\CurrentVersion\\Run\\*" or registry.path like~ "*\\CurrentVersion\\RunOnce\\*") and registry.data.strings like~ "*.exe" and not (registry.data.strings like~ "C:\\Program Files\\*" or registry.data.strings like~ "C:\\Program Files (x86)\\*" or registry.data.strings == null)

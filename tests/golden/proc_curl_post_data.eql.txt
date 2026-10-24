@@ -1,0 +1,1 @@
+UNSUPPORTED [regex escape '\b' (Lucene)]: [eql] escape '\b' in '(?i)\\b(curl|wget)\\b.+\\s(-d|--data|--post-data)\\s'

@@ -1,0 +1,1 @@
+SELECT * FROM "events" WHERE "CommandLine" REGEXP '(?i)\b(curl|wget)\b.+\s(-d|--data|--post-data)\s'

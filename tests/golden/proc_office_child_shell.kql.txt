@@ -1,0 +1,2 @@
+DeviceProcessEvents
+| where (InitiatingProcessFolderPath endswith "\\WINWORD.EXE" or InitiatingProcessFolderPath endswith "\\EXCEL.EXE") and (FolderPath endswith "\\cmd.exe" or FolderPath endswith "\\powershell.exe") and not(ProcessCommandLine contains "ApprovedAddin")

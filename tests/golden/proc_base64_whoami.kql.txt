@@ -1,0 +1,2 @@
+DeviceProcessEvents
+| where ProcessCommandLine contains "d2hvYW1p" or ProcessCommandLine contains "dob2Fta" or ProcessCommandLine contains "3aG9hbW"

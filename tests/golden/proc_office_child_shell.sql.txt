@@ -1,0 +1,1 @@
+SELECT * FROM "events" WHERE ("ParentImage" LIKE '%\\WINWORD.EXE' ESCAPE '\' OR "ParentImage" LIKE '%\\EXCEL.EXE' ESCAPE '\') AND ("Image" LIKE '%\\cmd.exe' ESCAPE '\' OR "Image" LIKE '%\\powershell.exe' ESCAPE '\') AND NOT coalesce("CommandLine" LIKE '%ApprovedAddin%' ESCAPE '\', 0)

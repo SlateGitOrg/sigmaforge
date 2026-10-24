@@ -1,0 +1,1 @@
+source="XmlWinEventLog:Microsoft-Windows-Sysmon/Operational" AND EventCode=1 AND (Image="*\\certutil.exe" OR OriginalFileName="CertUtil.exe") AND CommandLine="*urlcache*" AND CommandLine="*http*"

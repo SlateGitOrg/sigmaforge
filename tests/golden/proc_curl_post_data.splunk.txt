@@ -1,0 +1,1 @@
+* | where match(CommandLine, "(?i)\\b(curl|wget)\\b.+\\s(-d|--data|--post-data)\\s")

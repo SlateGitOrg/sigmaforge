@@ -1,0 +1,2 @@
+DeviceProcessEvents
+| where ProcessCommandLine matches regex "(?i)\\b(curl|wget)\\b.+\\s(-d|--data|--post-data)\\s"
