@@ -11,6 +11,7 @@ differential test consume the same AST, so such bugs are invisible to it by cons
 They are covered by the unit and golden tests instead.
 
 Usage: uv run python scripts/mutation_check.py [--examples N] [--seeds K] [--whole-rule-only]
+       uv run python scripts/mutation_check.py --pinned-examples
 """
 
 from __future__ import annotations
@@ -236,6 +237,29 @@ def property_holds(examples: int, seed: int, subtrees: bool = True) -> bool:
     return True
 
 
+def pinned_examples_hold() -> bool:
+    """The hand-written EXAMPLES that the test-suite pins with ``@example``."""
+    from tests.test_differential import EXAMPLES  # noqa: PLC0415
+
+    for doc, events in EXAMPLES:
+        try:
+            compiled = compile_rule(rule_from_dict(doc))
+            query = SQL(keyword_columns=FIELDS).convert(compiled).text
+            conn = sqlite_runtime.connect()
+            sqlite_runtime.load_events(conn, events, extra_columns=FIELDS)
+            want = evaluator.Evaluator(compiled.node).filter(events)
+            raw = compile_rule(rule_from_dict(doc), optimize=False)
+            if (
+                sqlite_runtime.run_query(conn, query) != want
+                or subtree_disagreements(compiled.node, events, FIELDS)
+                or evaluator.Evaluator(raw.node).filter(events) != want
+            ):
+                return False
+        except Exception:
+            return False
+    return True
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="seeded-bug kill rate of the differential test")
     parser.add_argument("--examples", type=int, default=300, help="examples per run")
@@ -245,12 +269,26 @@ def main() -> None:
         action="store_true",
         help="skip the per-subtree comparison (to measure what it adds)",
     )
+    parser.add_argument(
+        "--pinned-examples",
+        action="store_true",
+        help="check only the hand-written examples pinned in tests/test_differential.py",
+    )
     args = parser.parse_args()
     subtrees = not args.whole_rule_only
     seeds = range(args.seeds)
     # compile_rule imported simplify by name; patch through the compiler module too.
     import sigmaforge.compiler as compiler_module  # noqa: PLC0415
 
+    if args.pinned_examples:
+        if not pinned_examples_hold():
+            sys.exit("baseline (no mutant) fails the pinned examples - fix that first")
+        print("pinned @example cases only\n\n| mutant | killed |\n|---|---|")
+        for mutant in MUTANTS:
+            with mutant.patch(), _also_patch_compiler(mutant, compiler_module):
+                killed = not pinned_examples_hold()
+            print(f"| {mutant.name} | {'yes' if killed else 'NO'} |")
+        return
     if not all(property_holds(args.examples, s, subtrees) for s in seeds):
         sys.exit("baseline (no mutant) fails the property - fix that first")
     mode = "whole rule only" if args.whole_rule_only else "whole rule + every subtree"

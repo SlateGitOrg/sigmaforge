@@ -44,6 +44,7 @@ fuzz: install
 mutants: install
 	$(RUN) python scripts/mutation_check.py
 	$(RUN) python scripts/mutation_check.py --whole-rule-only
+	$(RUN) python scripts/mutation_check.py --pinned-examples
 
 bench: install
 	$(RUN) python scripts/bench.py

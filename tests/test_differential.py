@@ -73,6 +73,30 @@ EXAMPLES: list[tuple[dict[str, Any], list[dict[str, Any]]]] = [
         },
         [{"User": "A"}, {"Image": "ab"}, {"DestinationIp": "10.0.0.1"}, {"DestinationIp": "::1"}],
     ),
+    (  # GLOB metacharacters, a bare wildcard over missing/null fields, keyword columns
+        {
+            "title": "glob wildcard keywords",
+            "detection": {
+                "sel1": {"Image|cased": "a[b]\\*"},
+                "sel2": {"User": "*"},
+                "kw": ["zz"],
+                "condition": "1 of them",
+            },
+        },
+        [{"Image": "ab"}, {"Image": "a[b]*"}, {}, {"User": None}, {"Port": "zz"}],
+    ),
+    (  # an OR nested in an AND must stay nested
+        {
+            "title": "nesting",
+            "detection": {
+                "sel1": {"User": "a"},
+                "sel2": {"Image": "b"},
+                "filter_a": {"Port": 1},
+                "condition": "(sel1 or sel2) and filter_a",
+            },
+        },
+        [{"User": "a", "Port": 1}, {"User": "a"}, {"Image": "b", "Port": 1}],
+    ),
 ]
 
 
@@ -82,6 +106,8 @@ EXAMPLES: list[tuple[dict[str, Any], list[dict[str, Any]]]] = [
 @example(EXAMPLES[2])
 @example(EXAMPLES[3])
 @example(EXAMPLES[4])
+@example(EXAMPLES[5])
+@example(EXAMPLES[6])
 def test_sql_backend_agrees_with_evaluator(
     case: tuple[dict[str, Any], list[dict[str, Any]]],
 ) -> None:
@@ -97,6 +123,8 @@ def test_sql_backend_agrees_with_evaluator(
 @example(EXAMPLES[2])
 @example(EXAMPLES[3])
 @example(EXAMPLES[4])
+@example(EXAMPLES[5])
+@example(EXAMPLES[6])
 def test_every_subtree_agrees(case: tuple[dict[str, Any], list[dict[str, Any]]]) -> None:
     """Stronger than whole-rule agreement: no node of the tree may disagree on any event."""
     doc, evs = case
