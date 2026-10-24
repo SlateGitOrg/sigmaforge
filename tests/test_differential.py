@@ -91,7 +91,8 @@ def test_demo_rules_agree_on_fixture_events(root: Path) -> None:
     assert rules
     for path in rules:
         compiled = compile_rule(load_rule(path))
-        query = SQLiteBackend(keyword_columns=["CommandLine", "Image"]).convert(compiled).text
+        columns = sorted({k for e in evs for k in e})
+        query = SQLiteBackend(keyword_columns=columns).convert(compiled).text
         conn = connect()
         load_events(conn, evs, extra_columns=fields(compiled.node))
         assert run_query(conn, query) == Evaluator(compiled.node).filter(evs), path.name
