@@ -1,0 +1,145 @@
+name: sentinel-windows
+description: Microsoft Defender XDR / Sentinel tables (DeviceProcessEvents, DeviceNetworkEvents, ...), strict per-table field allowlists.
+priority: 20
+transformations:
+  # --- process creation (Windows and Linux endpoints) -----------------------------------------
+  - {id: process_table, type: set_state, key: kql_table, val: DeviceProcessEvents,
+     rule_conditions: [{type: logsource, category: process_creation}]}
+  - id: process_fields
+    type: field_name_mapping
+    rule_conditions: [{type: logsource, category: process_creation}]
+    mapping:
+      Image: FolderPath
+      CommandLine: ProcessCommandLine
+      ProcessId: ProcessId
+      ParentImage: InitiatingProcessFolderPath
+      ParentCommandLine: InitiatingProcessCommandLine
+      ParentProcessId: InitiatingProcessId
+      User: AccountName
+      LogonId: LogonId
+      IntegrityLevel: ProcessIntegrityLevel
+      OriginalFileName: ProcessVersionInfoOriginalFileName
+      Product: ProcessVersionInfoProductName
+      Company: ProcessVersionInfoCompanyName
+      Description: ProcessVersionInfoFileDescription
+      md5: MD5
+      sha1: SHA1
+      sha256: SHA256
+  - id: process_allowlist
+    type: field_allowlist
+    target: DeviceProcessEvents
+    rule_conditions: [{type: logsource, category: process_creation}]
+    fields: [FolderPath, ProcessCommandLine, ProcessId, InitiatingProcessFolderPath,
+             InitiatingProcessCommandLine, InitiatingProcessId, AccountName, LogonId,
+             ProcessIntegrityLevel, ProcessVersionInfoOriginalFileName, ProcessVersionInfoProductName,
+             ProcessVersionInfoCompanyName, ProcessVersionInfoFileDescription, MD5, SHA1, SHA256]
+
+  # --- network connections ----------------------------------------------------------------------
+  - {id: network_table, type: set_state, key: kql_table, val: DeviceNetworkEvents,
+     rule_conditions: [{type: logsource, category: network_connection}]}
+  - id: network_fields
+    type: field_name_mapping
+    rule_conditions: [{type: logsource, category: network_connection}]
+    mapping:
+      Image: InitiatingProcessFolderPath
+      CommandLine: InitiatingProcessCommandLine
+      User: InitiatingProcessAccountName
+      DestinationIp: RemoteIP
+      DestinationPort: RemotePort
+      DestinationHostname: RemoteUrl
+      SourceIp: LocalIP
+      SourcePort: LocalPort
+      Protocol: Protocol
+  - id: network_allowlist
+    type: field_allowlist
+    target: DeviceNetworkEvents
+    rule_conditions: [{type: logsource, category: network_connection}]
+    fields: [InitiatingProcessFolderPath, InitiatingProcessCommandLine, InitiatingProcessAccountName,
+             RemoteIP, RemotePort, RemoteUrl, LocalIP, LocalPort, Protocol]
+
+  # --- file events --------------------------------------------------------------------------------
+  - {id: file_table, type: set_state, key: kql_table, val: DeviceFileEvents,
+     rule_conditions: [{type: logsource, category: file_event}]}
+  - id: file_fields
+    type: field_name_mapping
+    rule_conditions: [{type: logsource, category: file_event}]
+    mapping:
+      TargetFilename: FolderPath
+      Image: InitiatingProcessFolderPath
+      CommandLine: InitiatingProcessCommandLine
+      User: InitiatingProcessAccountName
+  - id: file_allowlist
+    type: field_allowlist
+    target: DeviceFileEvents
+    rule_conditions: [{type: logsource, category: file_event}]
+    fields: [FolderPath, InitiatingProcessFolderPath, InitiatingProcessCommandLine,
+             InitiatingProcessAccountName]
+
+  # --- registry -------------------------------------------------------------------------------------
+  - {id: registry_table, type: set_state, key: kql_table, val: DeviceRegistryEvents,
+     rule_conditions: [{type: logsource, category: registry_set}, {type: logsource, category: registry_add},
+                       {type: logsource, category: registry_event}, {type: logsource, category: registry_delete}],
+     rule_condition_linking: any}
+  - id: registry_fields
+    type: field_name_mapping
+    rule_conditions: [{type: logsource, category: registry_set}, {type: logsource, category: registry_add},
+                      {type: logsource, category: registry_event}, {type: logsource, category: registry_delete}]
+    rule_condition_linking: any
+    mapping:
+      TargetObject: RegistryKey
+      Details: RegistryValueData
+      EventType: ActionType
+      Image: InitiatingProcessFolderPath
+      User: InitiatingProcessAccountName
+  - id: registry_allowlist
+    type: field_allowlist
+    target: DeviceRegistryEvents
+    rule_conditions: [{type: logsource, category: registry_set}, {type: logsource, category: registry_add},
+                      {type: logsource, category: registry_event}, {type: logsource, category: registry_delete}]
+    rule_condition_linking: any
+    fields: [RegistryKey, RegistryValueData, ActionType, InitiatingProcessFolderPath,
+             InitiatingProcessAccountName]
+
+  # --- image loads ------------------------------------------------------------------------------------
+  - {id: image_load_table, type: set_state, key: kql_table, val: DeviceImageLoadEvents,
+     rule_conditions: [{type: logsource, category: image_load}]}
+  - id: image_load_fields
+    type: field_name_mapping
+    rule_conditions: [{type: logsource, category: image_load}]
+    mapping:
+      ImageLoaded: FolderPath
+      Image: InitiatingProcessFolderPath
+      CommandLine: InitiatingProcessCommandLine
+  - id: image_load_allowlist
+    type: field_allowlist
+    target: DeviceImageLoadEvents
+    rule_conditions: [{type: logsource, category: image_load}]
+    fields: [FolderPath, InitiatingProcessFolderPath, InitiatingProcessCommandLine]
+
+  # --- Windows Security log (Sentinel SecurityEvent keeps the event-data column names) --------------
+  - {id: security_table, type: set_state, key: kql_table, val: SecurityEvent,
+     rule_conditions: [{type: logsource, product: windows, service: security}]}
+
+  # --- AWS CloudTrail ----------------------------------------------------------------------------------
+  - {id: cloudtrail_table, type: set_state, key: kql_table, val: AWSCloudTrail,
+     rule_conditions: [{type: logsource, product: aws, service: cloudtrail}]}
+  - id: cloudtrail_fields
+    type: field_name_mapping
+    rule_conditions: [{type: logsource, product: aws, service: cloudtrail}]
+    mapping:
+      eventName: EventName
+      eventSource: EventSource
+      errorCode: ErrorCode
+      errorMessage: ErrorMessage
+      sourceIPAddress: SourceIpAddress
+      userAgent: UserAgent
+      userIdentity.type: UserIdentityType
+      userIdentity.arn: UserIdentityArn
+      userIdentity.accountId: UserIdentityAccountId
+      awsRegion: AWSRegion
+  - id: cloudtrail_allowlist
+    type: field_allowlist
+    target: AWSCloudTrail
+    rule_conditions: [{type: logsource, product: aws, service: cloudtrail}]
+    fields: [EventName, EventSource, ErrorCode, ErrorMessage, SourceIpAddress, UserAgent,
+             UserIdentityType, UserIdentityArn, UserIdentityAccountId, AWSRegion]

@@ -1,0 +1,52 @@
+name: splunk-windows
+description: Splunk Add-on for Microsoft Windows / Sysmon - source selection and EventCode conditions.
+priority: 20
+transformations:
+  # --- Sysmon event codes per Sigma category (added before EventID is renamed) --------------
+  - {id: sysmon_process_creation, type: add_condition, conditions: {EventID: 1},
+     rule_conditions: [{type: logsource, product: windows, category: process_creation}]}
+  - {id: sysmon_network_connection, type: add_condition, conditions: {EventID: 3},
+     rule_conditions: [{type: logsource, product: windows, category: network_connection}]}
+  - {id: sysmon_image_load, type: add_condition, conditions: {EventID: 7},
+     rule_conditions: [{type: logsource, product: windows, category: image_load}]}
+  - {id: sysmon_process_access, type: add_condition, conditions: {EventID: 10},
+     rule_conditions: [{type: logsource, product: windows, category: process_access}]}
+  - {id: sysmon_file_event, type: add_condition, conditions: {EventID: 11},
+     rule_conditions: [{type: logsource, product: windows, category: file_event}]}
+  - {id: sysmon_registry, type: add_condition, conditions: {EventID: [12, 13, 14]},
+     rule_conditions: [{type: logsource, product: windows, category: registry_set},
+                       {type: logsource, product: windows, category: registry_add},
+                       {type: logsource, product: windows, category: registry_event},
+                       {type: logsource, product: windows, category: registry_delete}],
+     rule_condition_linking: any}
+  - {id: sysmon_dns_query, type: add_condition, conditions: {EventID: 22},
+     rule_conditions: [{type: logsource, product: windows, category: dns_query}]}
+  - {id: sysmon_source, type: set_state, key: splunk_prefix,
+     val: 'source="XmlWinEventLog:Microsoft-Windows-Sysmon/Operational"',
+     rule_conditions: [{type: logsource, product: windows, category: process_creation},
+                       {type: logsource, product: windows, category: network_connection},
+                       {type: logsource, product: windows, category: image_load},
+                       {type: logsource, product: windows, category: process_access},
+                       {type: logsource, product: windows, category: file_event},
+                       {type: logsource, product: windows, category: registry_set},
+                       {type: logsource, product: windows, category: registry_add},
+                       {type: logsource, product: windows, category: registry_event},
+                       {type: logsource, product: windows, category: registry_delete},
+                       {type: logsource, product: windows, category: dns_query}],
+     rule_condition_linking: any}
+
+  # --- Classic event log channels -------------------------------------------------------------
+  - {id: security_source, type: set_state, key: splunk_prefix, val: 'source="XmlWinEventLog:Security"',
+     rule_conditions: [{type: logsource, product: windows, service: security}]}
+  - {id: system_source, type: set_state, key: splunk_prefix, val: 'source="XmlWinEventLog:System"',
+     rule_conditions: [{type: logsource, product: windows, service: system}]}
+  - {id: powershell_script_source, type: set_state, key: splunk_prefix,
+     val: 'source="XmlWinEventLog:Microsoft-Windows-PowerShell/Operational" EventCode=4104',
+     rule_conditions: [{type: logsource, product: windows, category: ps_script}]}
+
+  # --- The Windows TA names the event id field EventCode ---------------------------------------
+  - id: eventcode
+    type: field_name_mapping
+    rule_conditions: [{type: logsource, product: windows}]
+    mapping:
+      EventID: EventCode

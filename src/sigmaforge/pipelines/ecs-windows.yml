@@ -1,0 +1,68 @@
+name: ecs-windows
+description: Sysmon / Windows / Linux field names to Elastic Common Schema; sets the EQL event category.
+priority: 20
+transformations:
+  # --- EQL event category per Sigma logsource category -------------------------------------
+  - {id: category_process, type: set_state, key: eql_category, val: process,
+     rule_conditions: [{type: logsource, category: process_creation}]}
+  - {id: category_network, type: set_state, key: eql_category, val: network,
+     rule_conditions: [{type: logsource, category: network_connection}]}
+  - {id: category_file, type: set_state, key: eql_category, val: file,
+     rule_conditions: [{type: logsource, category: file_event}, {type: logsource, category: file_delete},
+                       {type: logsource, category: file_access}, {type: logsource, category: file_change},
+                       {type: logsource, category: file_rename}],
+     rule_condition_linking: any}
+  - {id: category_registry, type: set_state, key: eql_category, val: registry,
+     rule_conditions: [{type: logsource, category: registry_set}, {type: logsource, category: registry_add},
+                       {type: logsource, category: registry_event}, {type: logsource, category: registry_delete}],
+     rule_condition_linking: any}
+  - {id: category_dns, type: set_state, key: eql_category, val: dns,
+     rule_conditions: [{type: logsource, category: dns_query}]}
+  - {id: category_library, type: set_state, key: eql_category, val: library,
+     rule_conditions: [{type: logsource, category: image_load}]}
+
+  # --- Windows: Sysmon/Security names to ECS; anything else lives under winlog.event_data ---
+  - id: windows_fields
+    type: field_name_mapping
+    rule_conditions: [{type: logsource, product: windows}]
+    fallback_prefix: winlog.event_data.
+    mapping:
+      EventID: event.code
+      Provider_Name: winlog.provider_name
+      Channel: winlog.channel
+      Image: process.executable
+      CommandLine: process.command_line
+      CurrentDirectory: process.working_directory
+      ProcessId: process.pid
+      ParentImage: process.parent.executable
+      ParentCommandLine: process.parent.command_line
+      ParentProcessId: process.parent.pid
+      OriginalFileName: process.pe.original_file_name
+      Product: process.pe.product
+      Company: process.pe.company
+      Description: process.pe.description
+      User: user.name
+      Hashes: [process.hash.md5, process.hash.sha1, process.hash.sha256]
+      DestinationIp: destination.ip
+      DestinationPort: destination.port
+      DestinationHostname: destination.domain
+      SourceIp: source.ip
+      SourcePort: source.port
+      TargetFilename: file.path
+      TargetObject: registry.path
+      Details: registry.data.strings
+      QueryName: dns.question.name
+      ImageLoaded: dll.path
+
+  # --- Linux process creation ---------------------------------------------------------------
+  - id: linux_fields
+    type: field_name_mapping
+    rule_conditions: [{type: logsource, product: linux}]
+    mapping:
+      Image: process.executable
+      CommandLine: process.command_line
+      CurrentDirectory: process.working_directory
+      ParentImage: process.parent.executable
+      ParentCommandLine: process.parent.command_line
+      User: user.name
+      LogonId: process.user.id
