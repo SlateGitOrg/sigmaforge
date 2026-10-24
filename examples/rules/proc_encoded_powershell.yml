@@ -1,0 +1,27 @@
+title: PowerShell With Encoded Command
+id: 6a1f0f9e-2b7d-4e0c-9a51-3f0c2d1b7a01
+status: experimental
+description: PowerShell started with an encoded command line, a common way to hide script content.
+author: sigmaforge examples
+logsource:
+  category: process_creation
+  product: windows
+detection:
+  selection_img:
+    - Image|endswith:
+        - '\powershell.exe'
+        - '\pwsh.exe'
+    - OriginalFileName:
+        - 'PowerShell.EXE'
+        - 'pwsh.dll'
+  selection_cli:
+    CommandLine|windash|contains:
+      - ' -enc '
+      - ' -EncodedCommand '
+  condition: all of selection_*
+falsepositives:
+  - Administrative scripts that pass encoded commands
+level: medium
+tags:
+  - attack.execution
+  - attack.t1059.001

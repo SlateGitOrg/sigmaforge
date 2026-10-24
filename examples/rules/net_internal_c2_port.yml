@@ -1,0 +1,21 @@
+title: Process In Temp Connecting To Internal Host On C2 Port
+id: 6a1f0f9e-2b7d-4e0c-9a51-3f0c2d1b7a04
+status: experimental
+description: A binary under a Temp or AppData folder connecting to a private address on a port often used by C2 frameworks.
+author: sigmaforge examples
+logsource:
+  category: network_connection
+  product: windows
+detection:
+  selection:
+    DestinationIp|cidr:
+      - '10.0.0.0/8'
+      - '192.168.0.0/16'
+    DestinationPort:
+      - 4444
+      - 1337
+    Image|re|i: '\\(temp|appdata)\\'
+  condition: selection
+level: high
+tags:
+  - attack.command-and-control

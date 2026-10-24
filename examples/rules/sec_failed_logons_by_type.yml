@@ -1,0 +1,18 @@
+title: Failed Network Logon From Non-Machine Account
+id: 6a1f0f9e-2b7d-4e0c-9a51-3f0c2d1b7a09
+status: experimental
+description: Failed logons (4625) of network types (3 and above) whose account is not a machine account.
+author: sigmaforge examples
+logsource:
+  product: windows
+  service: security
+detection:
+  selection:
+    EventID: 4625
+    LogonType|gte: 3
+  filter_machine:
+    TargetUserName|endswith: '$'
+  condition: selection and not filter_machine
+level: low
+tags:
+  - attack.credential-access

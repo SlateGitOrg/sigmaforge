@@ -1,0 +1,23 @@
+title: Office Application Spawning A Shell
+id: 6a1f0f9e-2b7d-4e0c-9a51-3f0c2d1b7a03
+status: experimental
+description: Word or Excel starting cmd.exe or PowerShell, excluding a known-benign add-in.
+author: sigmaforge examples
+logsource:
+  category: process_creation
+  product: windows
+detection:
+  selection:
+    ParentImage|endswith:
+      - '\WINWORD.EXE'
+      - '\EXCEL.EXE'
+    Image|endswith:
+      - '\cmd.exe'
+      - '\powershell.exe'
+  filter_addin:
+    CommandLine|contains: 'ApprovedAddin'
+  condition: selection and not 1 of filter_*
+level: high
+tags:
+  - attack.execution
+  - attack.t1204.002

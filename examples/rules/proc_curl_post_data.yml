@@ -1,0 +1,15 @@
+title: Curl Or Wget Posting Data
+id: 6a1f0f9e-2b7d-4e0c-9a51-3f0c2d1b7a08
+status: experimental
+description: curl or wget sending data with -d / --data, a possible exfiltration pattern.
+author: sigmaforge examples
+logsource:
+  category: process_creation
+  product: linux
+detection:
+  selection:
+    CommandLine|re: '(?i)\b(curl|wget)\b.+\s(-d|--data|--post-data)\s'
+  condition: selection
+level: medium
+tags:
+  - attack.exfiltration

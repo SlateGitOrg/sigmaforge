@@ -1,0 +1,21 @@
+title: Certutil Used To Download A File
+id: 6a1f0f9e-2b7d-4e0c-9a51-3f0c2d1b7a02
+status: experimental
+description: certutil.exe with urlcache and an http URL - a living-off-the-land download.
+author: sigmaforge examples
+logsource:
+  category: process_creation
+  product: windows
+detection:
+  selection_img:
+    - Image|endswith: '\certutil.exe'
+    - OriginalFileName: 'CertUtil.exe'
+  selection_cli:
+    CommandLine|contains|all:
+      - 'urlcache'
+      - 'http'
+  condition: all of selection_*
+level: high
+tags:
+  - attack.command-and-control
+  - attack.t1105

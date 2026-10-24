@@ -1,0 +1,25 @@
+title: Run Key Pointing To An Executable
+id: 6a1f0f9e-2b7d-4e0c-9a51-3f0c2d1b7a05
+status: experimental
+description: A Run or RunOnce registry value set to an .exe outside Program Files.
+author: sigmaforge examples
+logsource:
+  category: registry_set
+  product: windows
+detection:
+  selection:
+    TargetObject|contains:
+      - '\CurrentVersion\Run\'
+      - '\CurrentVersion\RunOnce\'
+    Details|endswith: '.exe'
+  filter_program_files:
+    Details|startswith:
+      - 'C:\Program Files\'
+      - 'C:\Program Files (x86)\'
+  filter_empty:
+    Details: null
+  condition: selection and not 1 of filter_*
+level: medium
+tags:
+  - attack.persistence
+  - attack.t1547.001
