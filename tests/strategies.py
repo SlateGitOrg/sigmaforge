@@ -11,6 +11,7 @@ folding is backend-defined (``é``/``É``, the Kelvin sign).
 
 from __future__ import annotations
 
+import ipaddress
 from typing import Any
 
 from hypothesis import strategies as st
@@ -34,41 +35,82 @@ ints = st.integers(min_value=-5, max_value=70000)
 ips = st.sampled_from(
     ["10.1.2.3", "10.255.0.1", "192.168.1.7", "192.168.2.7", "8.8.8.8", "::1", "2001:db8::5"]
 )
-networks = st.sampled_from(
-    ["10.0.0.0/8", "192.168.1.0/24", "0.0.0.0/0", "::1/128", "2001:db8::/32", "8.8.8.8/32"]
-)
+NETWORK_LIST = [
+    "10.0.0.0/8",
+    "192.168.1.0/24",
+    "0.0.0.0/0",
+    "::1/128",
+    "2001:db8::/32",
+    "8.8.8.8/32",
+]
+networks = st.sampled_from(NETWORK_LIST)
 regexes = st.sampled_from(
     ["^a", "b$", "a.b", "[0-9]+", "(?:ab|cd)", "\\\\", "A", "^$", "é", "x*y?", "^[a-z]+$", "%_"]
 )
 
-event_values = st.one_of(st.none(), texts, ints, ips)
+# Hand-picked values that tend to sit on semantic edges (case, newlines, metacharacters).
+EDGE_VALUES = [
+    "a",
+    "A",
+    "ab",
+    "AB",
+    "a\nb",
+    "a.b",
+    "axb",
+    "cd",
+    "123",
+    "",
+    "\u00e9",
+    "\u00c9",
+    "%",
+    "_",
+]
+event_values = st.one_of(st.none(), texts, ints, ips, st.sampled_from(EDGE_VALUES))
 events = st.lists(
     st.dictionaries(st.sampled_from(FIELDS), event_values, max_size=len(FIELDS)), max_size=8
 )
 
 
-def _mined_values(obj: Any) -> list[Any]:
-    """Every scalar that appears in a detection, to seed events that actually hit the rule."""
+def _mined_pairs(obj: Any, field: str | None = None) -> list[tuple[str | None, Any]]:
+    """Every ``(field, scalar)`` in a detection; keyword values carry ``field=None``."""
     if isinstance(obj, dict):
-        return [v for value in obj.values() for v in _mined_values(value)]
+        return [
+            pair
+            for key, value in obj.items()
+            if key != "condition"
+            for pair in _mined_pairs(value, str(key).split("|")[0] or None)
+        ]
     if isinstance(obj, list):
-        return [v for value in obj for v in _mined_values(value)]
+        return [pair for value in obj for pair in _mined_pairs(value, field)]
     if isinstance(obj, str | int) and not isinstance(obj, bool):
-        return [obj]
+        return [(field, obj)]
     return []
+
+
+MISSING = object()
+
+# "same" is weighted up: a rule only fires when *every* item of a selection matches, so most
+# derived values must hit exactly for the off-by-one variants to matter.
+VARIANTS = ["same", "same", "same", "raw", "upper", "lower", "swap", "pad", "mutate"]
 
 
 @st.composite
 def _near_miss(draw: st.DrawFn, seed: Any) -> Any:
-    """A value derived from ``seed``: wildcards filled, case flipped, padded, or as-is."""
+    """A value derived from a rule value: exact, wildcard-filled, re-cased, mutated or padded."""
     if isinstance(seed, int):
-        return draw(st.sampled_from([seed, str(seed), seed + 1, f"0{seed}"]))
+        return draw(st.sampled_from([seed, str(seed), seed + 1, f"0{seed}", "text"]))
+    if "/" in seed and seed in NETWORK_LIST:
+        net = ipaddress.ip_network(seed)
+        other = "::1" if net.version == 4 else "10.0.0.1"
+        return draw(st.sampled_from([str(net.network_address), str(net[-1]), other, seed]))
     filled = "".join(
         draw(texts) if ch == "*" else (draw(st.sampled_from("aZ%")) if ch == "?" else ch)
         for ch in seed.replace("\\*", "*")
     )
-    variant = draw(st.sampled_from(["same", "upper", "lower", "swap", "pad"]))
-    if variant == "upper":
+    variant = draw(st.sampled_from(VARIANTS))
+    if variant == "raw":
+        filled = seed  # the rule text itself, metacharacters and all
+    elif variant == "upper":
         filled = filled.upper()
     elif variant == "lower":
         filled = filled.lower()
@@ -76,18 +118,30 @@ def _near_miss(draw: st.DrawFn, seed: Any) -> Any:
         filled = filled.swapcase()
     elif variant == "pad":
         filled = draw(texts) + filled + draw(texts)
+    elif variant == "mutate" and filled:
+        index = draw(st.integers(0, len(filled) - 1))
+        filled = filled[:index] + draw(st.sampled_from(ALPHABET)) + filled[index + 1 :]
     return filled
 
 
 def events_for(doc: dict[str, Any]) -> st.SearchStrategy[list[dict[str, Any]]]:
-    """Events biased towards values mentioned in the rule, plus fully random ones."""
-    seeds = [v for v in _mined_values(doc["detection"]) if v != doc["detection"]["condition"]]
-    value = event_values
-    if seeds:
-        value = st.one_of(event_values, st.sampled_from(seeds).flatmap(_near_miss))
-    return st.lists(
-        st.dictionaries(st.sampled_from(FIELDS), value, max_size=len(FIELDS)), max_size=8
+    """Events whose values are mostly derived from the rule's own values for the same field."""
+    pairs = _mined_pairs(doc["detection"])
+    keyword_seeds = [v for f, v in pairs if f is None]
+    required: dict[str, st.SearchStrategy[Any]] = {}
+    optional: dict[str, st.SearchStrategy[Any]] = {}
+    for name in FIELDS:
+        seeds = [v for f, v in pairs if f == name] + keyword_seeds
+        if seeds:
+            derived = st.sampled_from(seeds).flatmap(_near_miss)
+            # Fields the rule talks about are usually present; MISSING drops the key.
+            required[name] = st.one_of(derived, derived, derived, event_values, st.just(MISSING))
+        else:
+            optional[name] = event_values
+    event = st.fixed_dictionaries(required, optional=optional).map(
+        lambda e: {k: v for k, v in e.items() if v is not MISSING}
     )
+    return st.lists(event, min_size=1, max_size=8)
 
 
 @st.composite
@@ -160,7 +214,7 @@ def selection(draw: st.DrawFn) -> Any:
     form = draw(st.sampled_from(["map", "map", "map", "list_of_maps", "keywords"]))
 
     def mapping() -> dict[str, Any]:
-        items = draw(st.lists(detection_item(), min_size=1, max_size=3))
+        items = draw(st.lists(detection_item(), min_size=1, max_size=2))
         return dict(items)  # duplicate keys collapse, as YAML would reject them anyway
 
     if form == "map":

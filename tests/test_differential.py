@@ -18,7 +18,7 @@ from sigmaforge.compiler import compile_rule
 from sigmaforge.evaluator import Evaluator, evaluate
 from sigmaforge.rule import load_rule, rule_from_dict
 from sigmaforge.sqlite_runtime import connect, load_events, run_query
-from tests.helpers import load_jsonl
+from tests.helpers import load_jsonl, subtree_disagreements
 from tests.strategies import FIELDS, rule_and_events
 
 
@@ -73,6 +73,14 @@ def test_sql_backend_agrees_with_evaluator(
     compiled = compile_rule(rule_from_dict(doc))
     expected = Evaluator(compiled.node).filter(evs)
     assert sql_matches(compiled, evs) == expected
+
+
+@given(rule_and_events())
+def test_every_subtree_agrees(case: tuple[dict[str, Any], list[dict[str, Any]]]) -> None:
+    """Stronger than whole-rule agreement: no node of the tree may disagree on any event."""
+    doc, evs = case
+    compiled = compile_rule(rule_from_dict(doc))
+    assert subtree_disagreements(compiled.node, evs, FIELDS) == []
 
 
 @given(rule_and_events())
