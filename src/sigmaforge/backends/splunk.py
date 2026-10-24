@@ -10,9 +10,11 @@ the ``where`` clause as a whole, which keeps the boolean structure exact.
 
 SPL search gives ``OR`` higher precedence than ``AND``, so every AND nested in an OR is
 parenthesised. Negation uses ``NOT field=value`` (which also matches events lacking the field,
-as Sigma requires), never ``field!=value``. Wildcard leaves in the eval dialect use ``(?s)`` and
-``\\z`` so ``*``/``?`` cross newlines and nothing matches before a trailing newline (see
-:func:`~sigmaforge.backends.base.full_match_regex`).
+as Sigma requires), never ``field!=value``. In the eval dialect a function of a missing field is
+NULL and ``NOT NULL`` stays NULL, so negation is pushed down to the leaves and guarded as
+``(isnull(F) OR NOT match(F, ...))`` (see :meth:`SplunkEvalRenderer.negate`). Wildcard leaves
+in the eval dialect use ``(?s)`` and ``\\z`` so ``*``/``?`` cross newlines and nothing matches
+before a trailing newline (see :func:`~sigmaforge.backends.base.full_match_regex`).
 """
 
 from __future__ import annotations
@@ -24,16 +26,20 @@ from sigmaforge.ast import (
     CidrMatch,
     CmpMatch,
     ExistsMatch,
+    FieldMatch,
     KeywordMatcher,
     Matcher,
     Node,
+    Not,
     NullMatch,
     NumMatch,
+    Or,
     RegexMatch,
     StrMatch,
 )
 from sigmaforge.backends.base import (
     PREC_AND,
+    PREC_ATOM,
     PREC_NOT,
     Backend,
     TextRenderer,
@@ -58,6 +64,13 @@ def _flagged(pattern: str, flags: frozenset[str]) -> str:
     return f"(?{''.join(sorted(flags))}){pattern}" if flags else pattern
 
 
+def _null_safe(matcher: Matcher) -> bool:
+    """Whether the eval rendering of ``matcher`` is TRUE/FALSE (never NULL) on a missing field."""
+    if isinstance(matcher, NullMatch | ExistsMatch):
+        return True
+    return isinstance(matcher, StrMatch) and matcher.pattern.shape()[0] is Shape.ANYTHING
+
+
 class SplunkEvalRenderer(TextRenderer):
     """The eval-expression dialect used after ``| where``."""
 
@@ -73,7 +86,29 @@ class SplunkEvalRenderer(TextRenderer):
         return "'" + name.replace("'", "\\'") + "'"
 
     def render_not(self, child: Node) -> str:
-        return f"NOT ({self.render(child)})"
+        return self.negate(child)
+
+    def negate(self, node: Node) -> str:
+        """``NOT node``, pushed down to the leaves so that no ``NOT`` ever sees a NULL.
+
+        Eval functions of a missing field (``match``, ``cidrmatch``, ``==``, ``<``...) are NULL,
+        ``NOT NULL`` is NULL and ``where`` keeps only TRUE, so a bare ``NOT (match(F, ...))``
+        would drop events lacking ``F`` that Sigma's ``not`` selects. De Morgan moves the
+        negation onto single leaves, and each negated leaf on a field is guarded with Splunk's
+        ``isnull(F) OR NOT ...`` idiom, which is TRUE for a missing field. ``isnull`` and
+        ``isnotnull`` are never NULL, and ``_raw`` always exists, so those need no guard. The
+        result is negation-free above the leaves, so any remaining NULL can only make it
+        FALSE where Sigma says FALSE.
+        """
+        if isinstance(node, Not):
+            return self.render(node.child, PREC_ATOM)
+        if isinstance(node, And | Or):
+            joiner = self.or_token if isinstance(node, And) else self.and_token
+            return "(" + f" {joiner} ".join(self.negate(c) for c in node.children) + ")"
+        if isinstance(node, FieldMatch) and not _null_safe(node.matcher):
+            leaf = self.field_match(node.field, node.matcher)
+            return f"(isnull({self.field_ref(node.field)}) {self.or_token} NOT {leaf})"
+        return f"NOT {self.render(node, PREC_ATOM)}"
 
     def field_match(self, field: str, matcher: Matcher) -> str:
         f = self.field_ref(field)

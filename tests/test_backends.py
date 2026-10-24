@@ -176,7 +176,7 @@ def test_splunk_search_terms(node: Node, query: str) -> None:
         ),
         (
             And((Not(f("A", RegexMatch("z"))), f("C", NumMatch(1)))),
-            'C=1 | where NOT (match(A, "z"))',
+            'C=1 | where (isnull(A) OR NOT match(A, "z"))',
         ),
         (
             And(
