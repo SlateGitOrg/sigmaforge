@@ -54,9 +54,10 @@ def test_tokenize_kinds() -> None:
         ("not not a", CondNot(CondNot(A))),
         ("1 of sel*", CondQuantifier("one", "sel*")),
         ("all of them", CondQuantifier("all", None)),
-        ("1 of them and not 1 of filter_*", CondAnd(
-            CondQuantifier("one", None), CondNot(CondQuantifier("one", "filter_*"))
-        )),
+        (
+            "1 of them and not 1 of filter_*",
+            CondAnd(CondQuantifier("one", None), CondNot(CondQuantifier("one", "filter_*"))),
+        ),
         ("((a))", A),
         ("selection-1 and x.y", CondAnd(CondRef("selection-1"), CondRef("x.y"))),
     ],
