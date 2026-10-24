@@ -77,7 +77,10 @@ def tokenize(text: str) -> list[Token]:
         elif kind == "rparen":
             tokens.append(Token(Tok.RPAREN, value, pos))
         elif kind == "pipe":
+            # Everything after '|' is an aggregation expression; the parser rejects it as a
+            # whole, so its own syntax (count(), >, by ...) is never tokenized.
             tokens.append(Token(Tok.PIPE, value, pos))
+            break
         elif kind == "oneof":
             tokens.append(Token(Tok.ONE_OF, value, pos))
         elif kind == "allof":

@@ -13,7 +13,6 @@ itself with their own escaping and wildcard tokens.
 from __future__ import annotations
 
 import enum
-import re
 from collections.abc import Callable, Iterator
 from dataclasses import dataclass
 
@@ -37,6 +36,18 @@ class Shape(enum.Enum):
     ENDSWITH = "endswith"  # *literal
     ANYTHING = "anything"  # just "*"
     PATTERN = "pattern"  # any other wildcard layout
+
+
+REGEX_META = frozenset("\\.^$*+?()[]{}|")
+
+
+def regex_escape(text: str) -> str:
+    """Escape only true regex metacharacters (portable to PCRE, RE2 and Python ``re``).
+
+    ``re.escape`` also escapes spaces, dashes and other punctuation, which is valid but makes
+    generated queries much harder to read.
+    """
+    return "".join("\\" + c if c in REGEX_META else c for c in text)
 
 
 def _normalise(parts: Iterator[Part] | list[Part] | tuple[Part, ...]) -> tuple[Part, ...]:
@@ -167,7 +178,7 @@ class SigmaString:
 
     def to_regex(self) -> str:
         """A Python/PCRE/RE2-compatible regex that must match the *whole* value."""
-        return self.render(re.escape, ".*", ".")
+        return self.render(regex_escape, ".*", ".")
 
     def __str__(self) -> str:
         def esc(text: str) -> str:
