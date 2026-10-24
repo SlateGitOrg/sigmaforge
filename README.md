@@ -121,7 +121,7 @@ proc_encoded_powershell.yml              sqlite=[0, 1, 2] evaluator=[0, 1, 2] ag
 proc_office_child_shell.yml              sqlite=[6] evaluator=[6] agree
 reg_run_key_persistence.yml              sqlite=[11] evaluator=[11] agree
 sec_failed_logons_by_type.yml            sqlite=[17] evaluator=[17] agree
-0 disagreement(s), 0 compile failure(s)
+0 disagreement(s), 0 failure(s)
 
 == 7. compile coverage over the pinned SigmaHQ subset (summary)
 splunk  200/200 compiled

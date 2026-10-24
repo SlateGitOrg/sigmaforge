@@ -1,6 +1,16 @@
 from __future__ import annotations
 
-from sigmaforge.sqlite_runtime import ROW_COLUMN, connect, flatten, load_events, run_query
+import pytest
+
+from sigmaforge.errors import EventDataError
+from sigmaforge.sqlite_runtime import (
+    ROW_COLUMN,
+    connect,
+    flatten,
+    identifier_key,
+    load_events,
+    run_query,
+)
 
 
 def test_flatten_nested_events() -> None:
@@ -35,3 +45,54 @@ def test_helper_functions() -> None:
     assert run_query(conn, blob) == [0, 1, 2, 3, 4]
     blob_cidr = "SELECT * FROM events WHERE sigma_cidr_match('10.0.0.0/8', x'00') = 0"
     assert len(run_query(conn, blob_cidr)) == 5
+
+
+@pytest.mark.parametrize(
+    ("events", "extra"),
+    [
+        ([{"image": "x"}, {"Image": "x"}], []),  # two events
+        ([{"image": "x", "Image": "y"}], []),  # one event
+        ([{"Image": "x"}], ["image"]),  # rule field vs event field
+        ([{"a": {"B": 1}}, {"a.b": 2}], []),  # through flattening
+    ],
+)
+def test_case_only_collisions_are_rejected(
+    events: list[dict[str, object]], extra: list[str]
+) -> None:
+    with pytest.raises(EventDataError, match="differ only by case"):
+        load_events(connect(), events, extra_columns=extra)
+
+
+def test_identifier_key_folds_ascii_only() -> None:
+    # SQLite folds ASCII letters only, so these are distinct columns and must stay loadable.
+    assert identifier_key("Image") == identifier_key("IMAGE") == "image"
+    assert identifier_key("\u00c9") != identifier_key("\u00e9")
+    conn = connect()
+    assert load_events(conn, [{"\u00c9": 1}, {"\u00e9": 2}]) == ["\u00c9", "\u00e9"]
+    assert run_query(conn, 'SELECT * FROM events WHERE "\u00e9" = 2') == [1]
+
+
+def test_reserved_row_column_is_dropped_in_any_case() -> None:
+    conn = connect()
+    assert load_events(conn, [{ROW_COLUMN.upper(): 1, "x": 2}]) == ["x"]
+    assert run_query(conn, "SELECT * FROM events") == [0]
+
+
+def test_cells_hold_what_the_evaluator_looks_up() -> None:
+    from sigmaforge.evaluator import MISSING, lookup
+
+    events: list[dict[str, object]] = [
+        {"a.b": "literal", "a": {"b": "nested"}},  # literal dotted key wins, as in lookup()
+        {"a": {"b": "nested"}, "a.b": "literal"},  # ... whatever the key order
+        {"a": {"b": "only-nested"}},
+        {"a.b": {"c": 1}},  # flattens to a.b.c, which lookup() cannot reach
+    ]
+    conn = connect()
+    columns = load_events(conn, events)
+    assert columns == ["a.b", "a.b.c"]
+    cells = conn.execute(f'SELECT "a.b", "a.b.c" FROM events ORDER BY "{ROW_COLUMN}"').fetchall()
+    assert cells == [("literal", None), ("literal", None), ("only-nested", None), (None, None)]
+    for event, row in zip(events, cells, strict=True):
+        for column, got in zip(columns, row, strict=True):
+            want = lookup(event, column)
+            assert got == (None if want is MISSING or isinstance(want, dict) else want)

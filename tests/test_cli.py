@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import sqlite3
 from pathlib import Path
 
 import pytest
@@ -89,7 +90,7 @@ def test_eval(capsys: pytest.CaptureFixture[str]) -> None:
 def test_sql_run_agrees(capsys: pytest.CaptureFixture[str]) -> None:
     assert main(["sql-run", str(RULES), "-e", str(EVENTS)]) == 0
     out = capsys.readouterr().out
-    assert "0 disagreement(s), 0 compile failure(s)" in out
+    assert "0 disagreement(s), 0 failure(s)" in out
     assert "DISAGREE" not in out
 
 
@@ -99,7 +100,56 @@ def test_sql_run_reports_compile_failures(
     rule = tmp_path / "bad.yml"
     rule.write_text("title: t\ndetection: {s: {A|re: '(?<bad'}, condition: s}\n", encoding="utf-8")
     assert main(["sql-run", str(rule), "-e", str(EVENTS)]) == 1
-    assert "1 compile failure(s)" in capsys.readouterr().out
+    assert "1 failure(s)" in capsys.readouterr().out
+
+
+def test_sql_run_case_only_field_collision_in_events_is_an_input_error(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    events = tmp_path / "ev.jsonl"
+    events.write_text('{"image": "x"}\n{"Image": "x"}\n', encoding="utf-8")
+    assert main(["sql-run", str(RULES), "-e", str(events)]) == 2
+    err = capsys.readouterr().err
+    assert "differ only by case" in err
+    assert "Traceback" not in err
+
+
+def test_sql_run_case_only_rule_field_collision_is_a_rule_failure(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    rule = tmp_path / "lower.yml"
+    rule.write_text("title: t\ndetection: {s: {image: x}, condition: s}\n", encoding="utf-8")
+    events = tmp_path / "ev.jsonl"
+    events.write_text('{"Image": "x"}\n', encoding="utf-8")
+    assert main(["sql-run", str(rule), "-e", str(events)]) == 1
+    captured = capsys.readouterr()
+    assert "differ only by case" in captured.err
+    assert "0 disagreement(s), 1 failure(s)" in captured.out
+
+
+def test_sql_run_sqlite_load_error_is_an_input_error(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    events = tmp_path / "wide.jsonl"
+    # More columns than SQLite's default SQLITE_MAX_COLUMN (2000).
+    events.write_text(json.dumps({f"f{i}": i for i in range(2100)}) + "\n", encoding="utf-8")
+    assert main(["sql-run", str(RULES), "-e", str(events)]) == 2
+    assert "cannot load events into SQLite" in capsys.readouterr().err
+
+
+def test_sql_run_reports_sqlite_errors_per_rule(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from sigmaforge import cli
+
+    def broken(conn: object, query: str) -> list[int]:
+        raise sqlite3.OperationalError("boom")
+
+    monkeypatch.setattr(cli, "run_query", broken)
+    assert main(["sql-run", str(RULES / "proc_encoded_powershell.yml"), "-e", str(EVENTS)]) == 1
+    captured = capsys.readouterr()
+    assert "boom" in captured.err
+    assert "1 failure(s)" in captured.out
 
 
 def test_ast_and_pipelines(capsys: pytest.CaptureFixture[str]) -> None:

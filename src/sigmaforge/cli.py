@@ -15,6 +15,7 @@ from __future__ import annotations
 import argparse
 import json
 import logging
+import sqlite3
 import sys
 from collections.abc import Sequence
 from pathlib import Path
@@ -153,6 +154,15 @@ def cmd_eval(args: argparse.Namespace) -> int:
 
 def cmd_sql_run(args: argparse.Namespace) -> int:
     events = _read_events(Path(args.events))
+    # Load the events once on their own: a problem here is an input error (exit 2), not a
+    # per-rule failure. EventDataError is a SigmaForgeError and already maps to exit 2.
+    conn = connect()
+    try:
+        load_events(conn, events)
+    except sqlite3.Error as exc:
+        raise UsageError(f"{args.events}: cannot load events into SQLite: {exc}") from exc
+    finally:
+        conn.close()
     disagreements = 0
     failures = 0
     for file in iter_rule_files(Path(p) for p in args.rules):
@@ -162,21 +172,21 @@ def cmd_sql_run(args: argparse.Namespace) -> int:
             )
             keyword_columns = sorted({k for e in events for k in e})
             query = get_backend("sql", keyword_columns=keyword_columns).convert(compiled)
-        except SigmaForgeError as exc:
+            conn = connect()
+            try:
+                load_events(conn, events, extra_columns=fields(compiled.node))
+                sql_hits = run_query(conn, query.text)
+            finally:
+                conn.close()
+        except (SigmaForgeError, sqlite3.Error) as exc:
             failures += 1
             print(f"error: {file}: {exc}", file=sys.stderr)
             continue
-        conn = connect()
-        try:
-            load_events(conn, events, extra_columns=fields(compiled.node))
-            sql_hits = run_query(conn, query.text)
-        finally:
-            conn.close()
         ref_hits = Evaluator(compiled.node).filter(events)
         verdict = "agree" if sql_hits == ref_hits else "DISAGREE"
         disagreements += sql_hits != ref_hits
         print(f"{file.name:40s} sqlite={sql_hits} evaluator={ref_hits} {verdict}")
-    print(f"{disagreements} disagreement(s), {failures} compile failure(s)")
+    print(f"{disagreements} disagreement(s), {failures} failure(s)")
     return 1 if disagreements or failures else 0
 
 

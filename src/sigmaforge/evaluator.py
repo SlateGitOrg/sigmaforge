@@ -47,6 +47,7 @@ from sigmaforge.errors import UnsupportedFeatureError
 from sigmaforge.sigmastr import SigmaString
 
 _MISSING = object()
+MISSING = _MISSING  # public name for what lookup() returns when a field is absent
 
 
 def value_text(value: Any) -> str | None:

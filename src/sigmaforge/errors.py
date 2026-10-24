@@ -66,3 +66,9 @@ class PipelineError(SigmaForgeError):
     """A processing pipeline definition is invalid or failed while being applied."""
 
     category = "pipeline"
+
+
+class EventDataError(SigmaForgeError):
+    """Event data cannot be loaded faithfully (e.g. fields that collide in a SQLite table)."""
+
+    category = "invalid-events"
