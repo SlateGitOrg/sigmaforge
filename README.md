@@ -71,7 +71,7 @@ their complexity.
 Requires Python 3.12 and [uv](https://docs.astral.sh/uv/).
 
 ```console
-$ git clone <this repo> && cd sigmaforge
+$ git clone https://github.com/SlateGitOrg/sigmaforge && cd sigmaforge
 $ make check                          # format, lint, mypy --strict, 684 tests, coverage gate
 $ uv run sigmaforge compile -t kql examples/rules/
 $ uv run sigmaforge compile -t splunk -f json -o out.json examples/rules/
@@ -285,6 +285,6 @@ docs/                  ARCHITECTURE, THREAT_MODEL, generated compile report
 
 ## License
 
-Code: MIT (see `LICENSE`). The rules under `third_party/sigmahq/` are by the SigmaHQ project
+Code: MIT, see [LICENSE](LICENSE). The rules under `third_party/sigmahq/` are by the SigmaHQ project
 and contributors under the Detection Rule License 1.1 (`third_party/sigmahq/DRL-1.1.md`); their
 author attributions are kept intact.

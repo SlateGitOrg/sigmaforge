@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "A Sigma detection-rule compiler: YAML -> AST -> Splunk SPL, Elastic EQL, Microsoft KQL and SQLite SQL, with a reference evaluator and differential tests."
 readme = "README.md"
 license = "MIT"
-authors = [{ name = "archit2501" }]
+authors = [{ name = "sigmaforge contributors" }]
 requires-python = ">=3.12"
 dependencies = ["pyyaml>=6.0.2,<7"]
 classifiers = [
